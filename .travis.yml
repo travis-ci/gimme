@@ -8,5 +8,4 @@ env:
   - GIMME_TMP="/var/tmp/gimme"
   - GIMME_ENVS_DIR="/var/tmp/gimme/envs"
   - GIMME_VERSIONS_DIR="/var/tmp/gimme/versions"
-  - GIMME_DEBUG=1
 script: ./test-install $(< known-binary-versions)
