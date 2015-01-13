@@ -17,6 +17,7 @@ env:
   - GIMME_GO_VERSION=go1
   global:
   - GIMME_TMP="/var/tmp/gimme"
+  - GIMME_DEBUG=1
 script:
 - ./gimme
 - source ~/.gimme/envs/$GIMME_GO_VERSION

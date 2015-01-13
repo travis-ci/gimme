@@ -5,14 +5,13 @@ set -o errexit
 : ${GIMME_DATE_FORMAT:=%Y-%m-%dT%H:%M:%S}
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
-: ${GIMME_TMP:=${TMPDIR}/gimme}
+: ${GIMME_TMP:=${TMPDIR%/*}/gimme}
 : ${GIMME_V:=}
 
 if [[ $GIMME_DEBUG ]] ; then
   set -o xtrace
   GIMME_V=v
 fi
-
 
 case "$GIMME_ARCH" in
   x86_64) GIMME_ARCH=amd64 ;;
@@ -53,6 +52,22 @@ Influential env vars include:
           GIMME_ARCH - os arch used for download (default '${GIMME_ARCH}')
            GIMME_TMP - temporary working directory (default '${GIMME_TMP}')
          GIMME_DEBUG - set trace, run commands with "v" (default '${GIMME_DEBUG}')
+
+System/shell dependencies:
+
+  basename
+  cat
+  curl
+  date
+  echo
+  mkdir
+  popd
+  pushd
+  tar
+  tee
+  tput
+  uname
+
 EOF
 }
 
