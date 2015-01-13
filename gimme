@@ -93,16 +93,16 @@ function __gimme_download_and_unpack() {
 
   pushd "${GIMME_TMP}/binaries" >/dev/null
 
-  if [[ ${GIMME_KNOWN_GO_BINARY_VERSIONS[*]} =~ $version ]] ; then
+  if [[ ${GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
+    download_url="$(__gimme_binary_crazy_legacy_version_url "$version")"
+  elif [[ ${GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
+    download_url="$(__gimme_binary_legacy_version_url "$version")"
+  elif [[ ${GIMME_KNOWN_GO_BINARY_VERSIONS[*]} =~ $version ]] ; then
     if [[ "$GIMME_OS" == darwin ]] ; then
       # FIXME: support more than osx10.8?
       GIMME_ARCH="${GIMME_ARCH}-osx10.8"
     fi
     download_url="$(__gimme_binary_version_url "$version")"
-  elif [[ ${GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
-    download_url="$(__gimme_binary_legacy_version_url "$version")"
-  elif [[ ${GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
-    download_url="$(__gimme_binary_crazy_legacy_version_url "$version")"
   else
     __gimme_error "How does one download version '$version'?"
   fi
