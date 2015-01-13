@@ -156,8 +156,10 @@ function main() {
   esac
 
   : ${GIMME_GO_VERSION:=${1:-${GIMME_KNOWN_GO_BINARY_VERSIONS[0]}}}
-  : ${GIMME_INSTALL_DEST:=${2:-${HOME}/.gimme/versions/${GIMME_GO_VERSION}}}
-  : ${GIMME_ENV_DEST:=${HOME}/.gimme/envs/${GIMME_GO_VERSION}}
+  : ${GIMME_VERSIONS_DIR:=${HOME}/.gimme/versions}
+  : ${GIMME_ENVS_DIR:=${HOME}/.gimme/envs}
+  : ${GIMME_INSTALL_DEST:=${2:-${GIMME_VERSIONS_DIR}/${GIMME_GO_VERSION}}}
+  : ${GIMME_ENV_DEST:=${GIMME_ENVS_DIR}/${GIMME_GO_VERSION}}
 
   __gimme_info "Using version=${GIMME_GO_VERSION}, os=${GIMME_OS}, arch=${GIMME_ARCH}, dest=${GIMME_INSTALL_DEST}"
 

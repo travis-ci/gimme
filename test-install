@@ -1,0 +1,20 @@
+#!/bin/bash
+set -o errexit
+
+function die() {
+  echo "$@"
+  exit 1
+}
+
+function main() {
+  [[ $GIMME_ENVS_DIR ]] || die 'Missing $GIMME_ENVS_DIR'
+  [[ $GIMME_VERSIONS_DIR ]] || die 'Missing $GIMME_VERSIONS_DIR'
+
+  for version in $* ; do
+    ./gimme $version
+    source $GIMME_ENVS_DIR/$version
+    go version
+  done
+}
+
+main "$@"
