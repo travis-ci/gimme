@@ -7,6 +7,7 @@ set -o errexit
 : ${GIMME_ARCH:=$(uname -m)}
 : ${GIMME_TMP:=${TMPDIR%/*}/gimme}
 : ${GIMME_V:=}
+: ${GIMME_CURL_OPTS:=--progress}
 
 if [[ $GIMME_DEBUG ]] ; then
   set -o xtrace
@@ -132,7 +133,7 @@ function __gimme_download_and_unpack() {
   if [[ -f "$binary_dest" ]] ; then
     __gimme_info "Local binary already exists, skipping download"
   else
-    curl --progress -L${GIMME_V}O "$download_url"
+    curl ${GIMME_CURL_OPTS} -L${GIMME_V}O "$download_url"
   fi
 
   mkdir -p "$install_dest"
