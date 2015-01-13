@@ -1,0 +1,159 @@
+#!/bin/bash
+
+set -o errexit
+
+: ${GIMME_DATE_FORMAT:=%Y-%m-%dT%H:%M:%S}
+: ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
+: ${GIMME_ARCH:=$(uname -m)}
+: ${GIMME_TMP:=${TMPDIR}/gimme}
+: ${GIMME_V:=}
+
+if [[ $GIMME_DEBUG ]] ; then
+  set -o xtrace
+  GIMME_V=v
+fi
+
+
+case "$GIMME_ARCH" in
+  x86_64) GIMME_ARCH=amd64 ;;
+  x86) GIMME_ARCH=386 ;;
+esac
+
+GIMME_KNOWN_GO_BINARY_VERSIONS=(
+  1.4
+  1.3.3
+  1.3.2
+  1.3.1
+  1.3
+  1.2.2
+)
+GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS=(
+  1.1
+  1.1.2
+  1.1.1
+  1.0.3
+  1.0.2
+  1.0.1
+)
+GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS=(
+  go1
+)
+
+function __gimme_usage() {
+  cat <<EOF
+Usage: $(basename $0) [go-version] [install-dest]
+
+Influential env vars include:
+
+    GIMME_GO_VERSION - desired version to install, if not given as first
+                       positional arg (default '${GIMME_GO_VERSION}')
+  GIMME_INSTALL_DEST - desired version installation directory, if not given
+                       as second positional arg (default '${GIMME_INSTALL_DEST}')
+            GIMME_OS - os name used for download (default '${GIMME_OS}')
+          GIMME_ARCH - os arch used for download (default '${GIMME_ARCH}')
+           GIMME_TMP - temporary working directory (default '${GIMME_TMP}')
+         GIMME_DEBUG - set trace, run commands with "v" (default '${GIMME_DEBUG}')
+EOF
+}
+
+function __gimme_now() {
+  date +$GIMME_DATE_FORMAT
+}
+
+function __gimme_info() {
+  echo -e "$(tput setaf 2)gimme:INFO:$(__gimme_now) ==> ${*}$(tput sgr0)"
+}
+
+function __gimme_error() {
+  echo -e "$(tput setaf 1)gimme:ERROR:$(__gimme_now) ==> ${*}$(tput sgr0)"
+  exit 1
+}
+
+function __gimme_binary_version_url() {
+  echo "https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+}
+
+function __gimme_binary_legacy_version_url() {
+  echo "https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+}
+
+function __gimme_binary_crazy_legacy_version_url() {
+  echo "https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+}
+
+function __gimme_download_and_unpack() {
+  local version="$1"
+  local install_dest="$2"
+  local download_url=""
+  local binary_dest=""
+
+  if [[ -d "$install_dest" ]] ; then
+    __gimme_error "Install dest already exists: '$install_dest'"
+  fi
+
+  pushd "${GIMME_TMP}/binaries" >/dev/null
+
+  if [[ ${GIMME_KNOWN_GO_BINARY_VERSIONS[*]} =~ $version ]] ; then
+    if [[ "$GIMME_OS" == darwin ]] ; then
+      # FIXME: support more than osx10.8?
+      GIMME_ARCH="${GIMME_ARCH}-osx10.8"
+    fi
+    download_url="$(__gimme_binary_version_url "$version")"
+  elif [[ ${GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
+    download_url="$(__gimme_binary_legacy_version_url "$version")"
+  elif [[ ${GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
+    download_url="$(__gimme_binary_crazy_legacy_version_url "$version")"
+  else
+    __gimme_error "How does one download version '$version'?"
+  fi
+
+  binary_dest="${GIMME_TMP}/binaries/$(basename "$download_url")"
+
+  __gimme_info "Download url: '$download_url'"
+  __gimme_info "Local binary dest: '$binary_dest'"
+
+  if [[ -f "$binary_dest" ]] ; then
+    __gimme_info "Local binary already exists, skipping download"
+  else
+    curl --progress -L${GIMME_V}O "$download_url"
+  fi
+
+  mkdir -p "$install_dest"
+  pushd "$install_dest" >/dev/null
+  tar xz${GIMME_V}f "$binary_dest" --strip-components 1 
+
+  popd >/dev/null
+  popd >/dev/null
+}
+
+function __gimme_show_env() {
+  echo
+  echo "export GOROOT=\"${1}\""
+  echo "export PATH=\"${1}/bin:\$PATH\""
+  echo
+}
+
+function main() {
+  case "$1" in
+    -h|--help|-?|help|halp|wat)
+      __gimme_usage && exit 0
+      ;;
+  esac
+
+  : ${GIMME_GO_VERSION:=${1:-${GIMME_KNOWN_GO_BINARY_VERSIONS[0]}}}
+  : ${GIMME_INSTALL_DEST:=${2:-${HOME}/.gimme/versions/${GIMME_GO_VERSION}}}
+  : ${GIMME_ENV_DEST:=${HOME}/.gimme/envs/${GIMME_GO_VERSION}}
+
+  __gimme_info "Using version=${GIMME_GO_VERSION}, os=${GIMME_OS}, arch=${GIMME_ARCH}, dest=${GIMME_INSTALL_DEST}"
+
+  mkdir -p "${GIMME_TMP}/binaries" $(dirname "$GIMME_INSTALL_DEST") $(dirname "${GIMME_ENV_DEST}")
+
+  __gimme_download_and_unpack "${GIMME_GO_VERSION}" "${GIMME_INSTALL_DEST}"
+
+  __gimme_info "All done installing '${GIMME_GO_VERSION}'"
+  __gimme_info "Set your vars accordindly.  (also available in '${GIMME_ENV_DEST}')"
+
+  __gimme_show_env "${GIMME_INSTALL_DEST}" | tee "${GIMME_ENV_DEST}"
+}
+
+main "$@"
