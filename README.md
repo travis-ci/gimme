@@ -1,6 +1,8 @@
 # gimme
 
-Gimme the Go already
+Install go, yay!
+
+`gimme` is a shell script that knows how to install [go](https://golang.org).  Fancy! :tada:
 
 ## Installation & usage
 
@@ -27,4 +29,3 @@ Or run without installing:
 ``` bash
 GIMME_GO_VERSION=1.4 curl -sL https://raw.githubusercontent.com/meatballhat/gimme/master/gimme | bash
 ```
-

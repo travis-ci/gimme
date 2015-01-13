@@ -42,6 +42,8 @@ function __gimme_usage() {
   cat <<EOF
 Usage: $(basename $0) [go-version] [install-dest]
 
+Install go, yay!
+
 Influential env vars include:
 
     GIMME_GO_VERSION - desired version to install, if not given as first
