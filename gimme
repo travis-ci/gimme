@@ -246,7 +246,7 @@ function main() {
   __gimme_download_and_unpack "${GIMME_GO_VERSION}" "${GIMME_INSTALL_DEST}"
 
   __gimme_info "All done installing '${GIMME_GO_VERSION}'"
-  __gimme_info "Set your vars accordindly.  (also available in '${GIMME_ENV_DEST}')"
+  __gimme_info "Set your vars accordingly.  (also available in '${GIMME_ENV_DEST}')"
 
   __gimme_show_env "${GIMME_INSTALL_DEST}" | tee "${GIMME_ENV_DEST}"
 }
