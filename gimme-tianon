@@ -1,0 +1,153 @@
+#!/bin/bash
+set -e
+
+: ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
+: ${GIMME_ARCH:=$(uname -m)}
+: ${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}
+: ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
+: ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
+
+if [ -z "$GIMME_GO_VERSION" ]; then
+	echo >&2 'error: no GIMME_GO_VERSION supplied'
+	echo >&2 "  ex: GIMME_GO_VERSION=1.4 $0 $@"
+	exit 1
+fi
+
+case "$GIMME_ARCH" in
+	x86_64) GIMME_ARCH=amd64 ;;
+	x86) GIMME_ARCH=386 ;;
+	arm*) GIMME_ARCH=arm ;;
+esac
+
+# _do_curl "url" "file"
+_do_curl() {
+	mkdir -p "$(dirname "$2")"
+	
+	if command -v curl > /dev/null; then
+		curl -sSLf "$1" -o "$2" 2>/dev/null
+		return
+	fi
+	
+	if command -v wget > /dev/null; then
+		wget -q "$1" -O "$2" 2>/dev/null
+		return
+	fi
+	
+	echo >&2 'error: no curl or wget found'
+	exit 1
+}
+
+# _binary "version" "file.tar.gz"
+_binary() {
+	[ ! -s "$2" ] || return 0
+	_do_curl "https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2" \
+	|| _do_curl "https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2" \
+	|| _do_curl "https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2"
+}
+
+# _source "version" "file.src.tar.gz"
+_source() {
+	[ ! -s "$2" ] || return 0
+	_do_curl "https://storage.googleapis.com/golang/go${1}.src.tar.gz" "$2" \
+	|| _do_curl "https://go.googlecode.com/files/go${1}.src.tar.gz" "$2" \
+	|| _do_curl "https://go.googlecode.com/files/go.${1}.src.tar.gz" "$2"
+}
+
+# _fetch "dir"
+_fetch() {
+	mkdir -p "$(dirname "$1")"
+	
+	if [ -d "$1/.git" ]; then
+		# TODO verify that "origin" matches "$GIMME_GO_GIT_REMOTE" and adjust accordingly
+		GIT_DIR="$1/.git" git fetch -q --all
+		return
+	fi
+	
+	git clone -q "$GIMME_GO_GIT_REMOTE" "$1"
+}
+
+# _checkout "version" "dir"
+_checkout() {
+	_fetch "$2"
+	( cd "$2" && git checkout -q "$1" )
+}
+
+# _extract "file.tar.gz" "dir"
+_extract() {
+	mkdir -p "$2"
+	tar -xf "$1" -C "$2" --strip-components 1
+}
+
+# _compile "dir"
+_compile() {
+	(
+		cd "$1"
+		if [ -d .git ]; then
+			git clean -dfx -q
+		fi
+		cd src
+		export GOOS="$GIMME_OS" GOARCH="$GIMME_ARCH"
+		./make.bash &> ../make.$GOOS.$GOARCH.log
+	)
+}
+
+# _env "dir"
+_env() {
+	if [ ! -d "$1/bin" -o ! -x "$1/bin/go" ]; then
+		echo >&2 "error: something horrible happened and $1 doesn't have bin/go in it!"
+		exit 1
+	fi
+	
+	# https://twitter.com/davecheney/status/431581286918934528
+	echo
+	echo 'export GOOS="'"$GIMME_OS"'" GOARCH="'"$GIMME_ARCH"'"'
+	echo 'export PATH="'"$1/bin"':$PATH"'
+	echo
+}
+
+_try_binary() {
+	local binTgz="$GIMME_TMP/go$GIMME_GO_VERSION.$GIMME_OS.$GIMME_ARCH.tar.gz"
+	local binDir="$GIMME_TMP/go$GIMME_GO_VERSION.$GIMME_OS.$GIMME_ARCH"
+	
+	_binary "$GIMME_GO_VERSION" "$binTgz" || return
+	_extract "$binTgz" "$binDir" || return
+	_env "$binDir"
+}
+
+_try_source() {
+	local srcTgz="$GIMME_TMP/go$GIMME_GO_VERSION.src.tar.gz"
+	local srcDir="$GIMME_TMP/go$GIMME_GO_VERSION.src"
+	
+	_source "$GIMME_GO_VERSION" "$srcTgz" || return
+	_extract "$srcTgz" "$srcDir" || return
+	_compile "$srcDir" || return
+	_env "$srcDir"
+}
+
+_try_git() {
+	local gitDir="$GIMME_TMP/go"
+	
+	_checkout "$GIMME_GO_VERSION" "$gitDir" || return
+	_compile "$gitDir" || return
+	_env "$gitDir"
+}
+
+main() {
+	if ! case "$GIMME_TYPE" in
+		binary) _try_binary ;;
+		source) _try_source ;;
+		git)    _try_git ;;
+		auto)   _try_binary || _try_source || _try_git ;;
+		*)
+			echo >&2 "I don't know how to '$GIMME_TYPE'."
+			echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
+			exit 1
+			;;
+	esac; then
+		echo >&2 "I don't have any idea what to do with '$GIMME_GO_VERSION'."
+		echo >&2 "  (using type '$GIMME_TYPE')"
+		exit 1
+	fi
+}
+
+main
