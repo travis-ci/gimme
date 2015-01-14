@@ -22,6 +22,7 @@ fi
 case "$GIMME_ARCH" in
   x86_64) GIMME_ARCH=amd64 ;;
   x86) GIMME_ARCH=386 ;;
+  # TODO ARM magic (which is always superfun)
 esac
 
 GIMME_KNOWN_GO_BINARY_VERSIONS=(
