@@ -6,10 +6,5 @@ os:
 env:
   global:
   - GIMME_TMP="/var/tmp/gimme"
-  - GIMME_ENVS_DIR="/var/tmp/gimme/envs"
-  - GIMME_VERSIONS_DIR="/var/tmp/gimme/versions"
-  - GIMME_CURL_OPTS="-s"
 script:
-- ./test-install $(< known-binary-versions)
-- ./test-install $(< known-source-versions)
-- for v in $(< known-binary-versions) $(< known-source-versions); do GIMME_GO_VERSION=$v ./gimme-tianon; done
+- for v in $(< known-binary-versions) $(< known-source-versions); do GIMME_GO_VERSION=$v ./gimme; done

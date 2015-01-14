@@ -1,255 +1,210 @@
 #!/bin/bash
+set -e
 
-set -o errexit
-
-: ${GIMME_DATE_FORMAT:=%Y-%m-%dT%H:%M:%S}
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
-: ${GIMME_TMP:=${TMPDIR%/*}/gimme}
-: ${GIMME_BINARIES_DIR:=${GIMME_TMP}/binaries}
-: ${GIMME_SOURCE_DIR:=${GIMME_TMP}/source}
-: ${GIMME_LOGS_DIR:=${GIMME_TMP}/logs}
-: ${GIMME_V:=}
-: ${GIMME_CURL_OPTS:=--progress}
+: ${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}
 : ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
-: ${GIMME_GO_TAG_REGEX:=^(go|weekly|release|tip|master)}
+: ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
+: ${GIMME_BINARY_OSX:=osx10.8}
 
-if [[ $GIMME_DEBUG ]] ; then
-  set -o xtrace
-  GIMME_V=v
+if [ -z "$GIMME_GO_VERSION" ]; then
+	echo >&2 'error: no GIMME_GO_VERSION supplied'
+	echo >&2 "  ex: GIMME_GO_VERSION=1.4 $0 $@"
+	exit 1
 fi
 
 case "$GIMME_ARCH" in
-  x86_64) GIMME_ARCH=amd64 ;;
-  x86) GIMME_ARCH=386 ;;
-  # TODO ARM magic (which is always superfun)
+	x86_64) GIMME_ARCH=amd64 ;;
+	x86) GIMME_ARCH=386 ;;
+	arm*) GIMME_ARCH=arm ;;
 esac
 
-GIMME_KNOWN_GO_BINARY_VERSIONS=(
-  1.4
-  1.3.3
-  1.3.2
-  1.3.1
-  1.3
-  1.2.2
-)
-GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS=(
-  1.1
-  1.1.2
-  1.1.1
-  1.0.3
-  1.0.2
-  1.0.1
-)
-GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS=(
-  go1
-)
+unset GOARCH
+unset GOBIN
+unset GOOS
+unset GOPATH
+unset GOROOT
 
-function __gimme_usage() {
-  cat <<EOF
-Usage: $(basename $0) [go-version] [install-dest]
-
-Install go, yay!
-
-Influential env vars include:
-
-    GIMME_GO_VERSION - desired version to install, if not given as first
-                       positional arg (default '${GIMME_GO_VERSION}')
-  GIMME_INSTALL_DEST - desired version installation directory, if not given
-                       as second positional arg (default '${GIMME_INSTALL_DEST}')
-            GIMME_OS - os name used for download (default '${GIMME_OS}')
-          GIMME_ARCH - os arch used for download (default '${GIMME_ARCH}')
-           GIMME_TMP - temporary working directory (default '${GIMME_TMP}')
-         GIMME_DEBUG - set trace, run commands with "v" (default '${GIMME_DEBUG}')
-
-System/shell dependencies:
-
-  basename cat curl date echo git mkdir popd pushd tar tee tput uname
-
-EOF
+# _do_curl "url" "file"
+_do_curl() {
+	mkdir -p "$(dirname "$2")"
+	
+	if command -v curl > /dev/null; then
+		curl -sSLf "$1" -o "$2" 2>/dev/null
+		return
+	fi
+	
+	if command -v wget > /dev/null; then
+		wget -q "$1" -O "$2" 2>/dev/null
+		return
+	fi
+	
+	echo >&2 'error: no curl or wget found'
+	exit 1
 }
 
-function __gimme_now() {
-  date +$GIMME_DATE_FORMAT
+# _do_curls "file" "url" ["url"...]
+_do_curls() {
+	f="$1"
+	shift
+	[ ! -s "$f" ] || return 0
+	for url in "$@"; do
+		if _do_curl "$url" "$f"; then
+			return
+		fi
+	done
+	rm -f "$f"
+	return 1
 }
 
-function __gimme_info() {
-  echo -e "$(tput setaf 2)gimme:INFO:$(__gimme_now) ==> ${*}$(tput sgr0)"
+# _binary "version" "file.tar.gz"
+_binary() {
+	urls=(
+		"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+	)
+	if [ "$GIMME_OS" = 'darwin' -a "$GIMME_BINARY_OSX" ]; then
+		urls=(
+			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}-${GIMME_BINARY_OSX}.tar.gz"
+			"${urls[@]}"
+		)
+	fi
+	_do_curls "$2" "${urls[@]}"
 }
 
-function __gimme_error() {
-  echo -e "$(tput setaf 1)gimme:ERROR:$(__gimme_now) ==> ${*}$(tput sgr0)"
-  exit 1
+# _source "version" "file.src.tar.gz"
+_source() {
+	urls=(
+		"https://storage.googleapis.com/golang/go${1}.src.tar.gz"
+		"https://go.googlecode.com/files/go${1}.src.tar.gz"
+		"https://go.googlecode.com/files/go.${1}.src.tar.gz"
+	)
+	_do_curls "$2" "${urls[@]}"
 }
 
-function __gimme_binary_version_url() {
-  echo "https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+# _fetch "dir"
+_fetch() {
+	mkdir -p "$(dirname "$1")"
+	
+	if [ -d "$1/.git" ]; then
+		(
+			cd "$1"
+			git remote set-url origin "$GIMME_GO_GIT_REMOTE"
+			git fetch -q --all && git fetch -q --tags
+		)
+		return
+	fi
+	
+	git clone -q "$GIMME_GO_GIT_REMOTE" "$1"
 }
 
-function __gimme_binary_legacy_version_url() {
-  echo "https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+# _checkout "version" "dir"
+_checkout() {
+	_fetch "$2"
+	( cd "$2" && {
+		git reset -q --hard "origin/$1" \
+		|| git reset -q --hard "origin/go$1" \
+		|| { [ "$1" = 'tip' ] && git reset -q --hard origin/master; } \
+		|| git reset -q --hard "refs/tags/$1" \
+		|| git reset -q --hard "refs/tags/go$1"
+	} 2>/dev/null )
 }
 
-function __gimme_binary_crazy_legacy_version_url() {
-  echo "https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+# _extract "file.tar.gz" "dir"
+_extract() {
+	mkdir -p "$2"
+	tar -xf "$1" -C "$2" --strip-components 1
 }
 
-function __gimme_download_and_unpack() {
-  local version="$1"
-  local install_dest="$2"
-  local download_url=""
-  local binary_dest=""
-
-  if [[ -d "$install_dest" ]] ; then
-    __gimme_error "Install dest already exists: '$install_dest'"
-  fi
-
-  pushd "${GIMME_BINARIES_DIR}" >/dev/null
-
-  if [[ ${GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
-    if [[ "$GIMME_OS" == darwin ]] ; then
-      __gimme_error "There is no tarball available for '$version' on darwin"
-    fi
-    download_url="$(__gimme_binary_crazy_legacy_version_url "$version")"
-  elif [[ ${GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
-    download_url="$(__gimme_binary_legacy_version_url "$version")"
-  elif [[ ${GIMME_KNOWN_GO_BINARY_VERSIONS[*]} =~ $version ]] ; then
-    if [[ "$GIMME_OS" == darwin ]] ; then
-      # FIXME: support more than osx10.8?
-      GIMME_ARCH="${GIMME_ARCH}-osx10.8"
-
-      if [[ $version =~ 1.0.[12] ]] ; then
-        __gimme_error "There is no tarball available for '$version' on darwin"
-      fi
-    fi
-    download_url="$(__gimme_binary_version_url "$version")"
-  elif [[ $version =~ ${GIMME_GO_TAG_REGEX} ]] ; then
-    __gimme_info "Detected tag-like version.  Attempting source install"
-    __gimme_install_from_source "$version" "$install_dest"
-    popd >/dev/null
-    return
-  else
-    __gimme_error "How does one download version '$version'?"
-  fi
-
-  binary_dest="${GIMME_BINARIES_DIR}/$(basename "$download_url")"
-
-  __gimme_info "Download url: '$download_url'"
-  __gimme_info "Local binary dest: '$binary_dest'"
-
-  if [[ -f "$binary_dest" ]] ; then
-    __gimme_info "Local binary already exists, skipping download"
-  else
-    curl ${GIMME_CURL_OPTS} -L${GIMME_V}O "$download_url"
-  fi
-
-  mkdir -p "$install_dest"
-  pushd "$install_dest" >/dev/null
-  tar xz${GIMME_V}f "$binary_dest" --strip-components 1 
-
-  popd >/dev/null
-  popd >/dev/null
+# _compile "dir"
+_compile() {
+	(
+		cd "$1"
+		if [ -d .git ]; then
+			git clean -dfx -q
+		fi
+		cd src
+		export GOOS="$GIMME_OS" GOARCH="$GIMME_ARCH"
+		./make.bash &> ../make.$GOOS.$GOARCH.log
+	)
 }
 
-function __gimme_install_from_source() {
-  local version="$1"
-  local install_dest="$2"
-  local branch_name="gimme-tmp-$version"
-  local build_log="${GIMME_LOGS_DIR}/go-$version-build.log"
-
-  if [[ ${version} == tip ]] ; then
-    __gimme_info "Using version 'master' instead of 'tip'"
-    version=master
-  fi
-
-  __gimme_clone_go_source
-
-  pushd "${GIMME_SOURCE_DIR}/go" >/dev/null
-
-  if git branch "$branch_name" ; then
-    __gimme_info "Created temporary branch '$branch_name'"
-  fi
-
-  git checkout "$branch_name"
-
-  if git reset --hard $version ; then
-    __gimme_info "Reset git working copy to '$version'"
-  else
-    __gimme_error "Failed to reset git working copy to '$version'"
-  fi
-
-  unset GOARCH
-  unset GOOS
-  unset GOPATH
-  unset GOBIN
-  unset GOROOT
-
-  export GOBIN="${install_dest}/bin"
-  export PATH="${GOBIN}:${PATH}"
-  export GOROOT="${install_dest}"
-
-  pushd src >/dev/null
-
-  __gimme_info "Cleaning source tree"
-  git clean -dfx
-
-  __gimme_info "Building go at '$version'"
-  __gimme_info "Build output: '${build_log}'"
-  ./make.bash &> "${build_log}"
-
-  popd >/dev/null
-  popd >/dev/null
+# _env "dir"
+_env() {
+	[ -d "$1/bin" -a -x "$1/bin/go" ] || return
+	
+	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source automatically
+	GOROOT="$1" "$1/bin/go" version &> /dev/null || return
+	
+	# https://twitter.com/davecheney/status/431581286918934528
+	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
+	
+	echo
+	if [ "$(GOROOT="$1" "$1/bin/go" env GOHOSTOS)" = "$GIMME_OS" ]; then
+		echo 'unset GOOS'
+	else
+		echo 'export GOOS="'"$GIMME_OS"'"'
+	fi
+	if [ "$(GOROOT="$1" "$1/bin/go" env GOHOSTARCH)" = "$GIMME_ARCH" ]; then
+		echo 'unset GOARCH'
+	else
+		echo 'export GOARCH="'"$GIMME_ARCH"'"'
+	fi
+	if ! "$1/bin/go" version &> /dev/null; then
+		# if "go version" fails without GOROOT, then we probably need GOROOT
+		echo 'export GOROOT="'"$1"'"'
+	else
+		echo 'unset GOROOT'
+	fi
+	echo 'export PATH="'"$1/bin"':$PATH"'
+	echo
 }
 
-function __gimme_clone_go_source() {
-  pushd "${GIMME_SOURCE_DIR}" >/dev/null
-
-  if [[ -d go/.git ]] ; then
-    __gimme_info "Found existing git clone.  Updating..."
-    pushd go >/dev/null
-    git fetch --all
-    popd >/dev/null
-    return
-  fi
-
-  git clone "${GIMME_GO_GIT_REMOTE}" go
-  popd >/dev/null
+_try_binary() {
+	local binTgz="$GIMME_TMP/go$GIMME_GO_VERSION.$GIMME_OS.$GIMME_ARCH.tar.gz"
+	local binDir="$GIMME_TMP/go$GIMME_GO_VERSION.$GIMME_OS.$GIMME_ARCH"
+	
+	_binary "$GIMME_GO_VERSION" "$binTgz" || return
+	_extract "$binTgz" "$binDir" || return
+	_env "$binDir"
 }
 
-function __gimme_show_env() {
-  echo
-  echo "export GOROOT=\"${1}\""
-  echo "export PATH=\"${1}/bin:\$PATH\""
-  echo
+_try_source() {
+	local srcTgz="$GIMME_TMP/go$GIMME_GO_VERSION.src.tar.gz"
+	local srcDir="$GIMME_TMP/go$GIMME_GO_VERSION.src"
+	
+	_source "$GIMME_GO_VERSION" "$srcTgz" || return
+	_extract "$srcTgz" "$srcDir" || return
+	_compile "$srcDir" || return
+	_env "$srcDir"
 }
 
-function main() {
-  case "$1" in
-    -h|--help|-?|help|halp|wat)
-      __gimme_usage && exit 0
-      ;;
-  esac
-
-  : ${GIMME_GO_VERSION:=${1:-${GIMME_KNOWN_GO_BINARY_VERSIONS[0]}}}
-  : ${GIMME_VERSIONS_DIR:=${HOME}/.gimme/versions}
-  : ${GIMME_ENVS_DIR:=${HOME}/.gimme/envs}
-  : ${GIMME_INSTALL_DEST:=${2:-${GIMME_VERSIONS_DIR}/${GIMME_GO_VERSION}}}
-  : ${GIMME_ENV_DEST:=${GIMME_ENVS_DIR}/${GIMME_GO_VERSION}}
-
-  __gimme_info "Using version=${GIMME_GO_VERSION}, os=${GIMME_OS}, arch=${GIMME_ARCH}, dest=${GIMME_INSTALL_DEST}"
-
-  mkdir -p "${GIMME_BINARIES_DIR}" \
-           "${GIMME_SOURCE_DIR}" \
-           "${GIMME_LOGS_DIR}" \
-           "$(dirname "$GIMME_INSTALL_DEST")" \
-           "$(dirname "${GIMME_ENV_DEST}")"
-
-  __gimme_download_and_unpack "${GIMME_GO_VERSION}" "${GIMME_INSTALL_DEST}"
-
-  __gimme_info "All done installing '${GIMME_GO_VERSION}'"
-  __gimme_info "Set your vars accordingly.  (also available in '${GIMME_ENV_DEST}')"
-
-  __gimme_show_env "${GIMME_INSTALL_DEST}" | tee "${GIMME_ENV_DEST}"
+_try_git() {
+	local gitDir="$GIMME_TMP/go"
+	
+	_checkout "$GIMME_GO_VERSION" "$gitDir" || return
+	_compile "$gitDir" || return
+	_env "$gitDir"
 }
 
-main "$@"
+main() {
+	if ! case "$GIMME_TYPE" in
+		binary) _try_binary ;;
+		source) _try_source || _try_git ;;
+		git)    _try_git ;;
+		auto)   _try_binary || _try_source || _try_git ;;
+		*)
+			echo >&2 "I don't know how to '$GIMME_TYPE'."
+			echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
+			exit 1
+			;;
+	esac; then
+		echo >&2 "I don't have any idea what to do with '$GIMME_GO_VERSION'."
+		echo >&2 "  (using type '$GIMME_TYPE')"
+		exit 1
+	fi
+}
+
+main
