@@ -38,24 +38,44 @@ _do_curl() {
 	exit 1
 }
 
+# _do_curls "file" "url" ["url"...]
+_do_curls() {
+	f="$1"
+	shift
+	[ ! -s "$f" ] || return 0
+	for url in "$@"; do
+		if _do_curl "$url" "$f"; then
+			return
+		fi
+	done
+	rm -f "$f"
+	return 1
+}
+
 # _binary "version" "file.tar.gz"
 _binary() {
-	[ ! -s "$2" ] || return 0
-	if [ "$GIMME_OS" = 'darwin' ]; then
-		# add a suffix for OSX binaries
-		local GIMME_ARCH="$GIMME_ARCH-$GIMME_BINARY_OSX"
+	urls=(
+		"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+	)
+	if [ "$GIMME_OS" = 'darwin' -a "$GIMME_BINARY_OSX" ]; then
+		urls=(
+			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}-${GIMME_BINARY_OSX}.tar.gz"
+			"${urls[@]}"
+		)
 	fi
-	_do_curl "https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2" \
-	|| _do_curl "https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2" \
-	|| _do_curl "https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2"
+	_do_curls "$2" "${urls[@]}"
 }
 
 # _source "version" "file.src.tar.gz"
 _source() {
-	[ ! -s "$2" ] || return 0
-	_do_curl "https://storage.googleapis.com/golang/go${1}.src.tar.gz" "$2" \
-	|| _do_curl "https://go.googlecode.com/files/go${1}.src.tar.gz" "$2" \
-	|| _do_curl "https://go.googlecode.com/files/go.${1}.src.tar.gz" "$2"
+	urls=(
+		"https://storage.googleapis.com/golang/go${1}.src.tar.gz"
+		"https://go.googlecode.com/files/go${1}.src.tar.gz"
+		"https://go.googlecode.com/files/go.${1}.src.tar.gz"
+	)
+	_do_curls "$2" "${urls[@]}"
 }
 
 # _fetch "dir"
