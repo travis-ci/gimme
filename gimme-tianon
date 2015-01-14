@@ -144,7 +144,7 @@ _try_git() {
 main() {
 	if ! case "$GIMME_TYPE" in
 		binary) _try_binary ;;
-		source) _try_source ;;
+		source) _try_source || _try_git ;;
 		git)    _try_git ;;
 		auto)   _try_binary || _try_source || _try_git ;;
 		*)
