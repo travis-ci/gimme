@@ -74,11 +74,11 @@ _fetch() {
 # _checkout "version" "dir"
 _checkout() {
 	_fetch "$2"
-	if [ "$1" = 'tip' ]; then
-		# convert "tip" to "master"
-		shift && set -- master "$@"
-	fi
-	( cd "$2" && git checkout -q "$1" )
+	( cd "$2" && {
+		git checkout -q "$1" \
+		|| { [ "$1" = 'tip' ] && git checkout -q master; } \
+		|| git checkout -q "go$1"
+	} 2>/dev/null )
 }
 
 # _extract "file.tar.gz" "dir"
