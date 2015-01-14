@@ -127,10 +127,10 @@ _compile() {
 
 # _env "dir"
 _env() {
-	if [ ! -d "$1/bin" -o ! -x "$1/bin/go" ]; then
-		echo >&2 "error: something horrible happened and $1 doesn't have bin/go in it!"
-		exit 1
-	fi
+	[ -d "$1/bin" -a -x "$1/bin/go" ] || return
+	
+	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source automatically
+	[ "$("$1/bin/go" env GOROOT 2>/dev/null)" = "$1" ] || return
 	
 	# https://twitter.com/davecheney/status/431581286918934528
 	echo
