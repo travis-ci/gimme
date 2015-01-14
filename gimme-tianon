@@ -6,6 +6,7 @@ set -e
 : ${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}
 : ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
+: ${GIMME_BINARY_OSX:=osx10.8}
 
 if [ -z "$GIMME_GO_VERSION" ]; then
 	echo >&2 'error: no GIMME_GO_VERSION supplied'
@@ -40,6 +41,10 @@ _do_curl() {
 # _binary "version" "file.tar.gz"
 _binary() {
 	[ ! -s "$2" ] || return 0
+	if [ "$GIMME_OS" = 'darwin' ]; then
+		# add a suffix for OSX binaries
+		local GIMME_ARCH="$GIMME_ARCH-$GIMME_BINARY_OSX"
+	fi
 	_do_curl "https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2" \
 	|| _do_curl "https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2" \
 	|| _do_curl "https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz" "$2"
@@ -69,6 +74,10 @@ _fetch() {
 # _checkout "version" "dir"
 _checkout() {
 	_fetch "$2"
+	if [ "$1" = 'tip' ]; then
+		# convert "tip" to "master"
+		shift && set -- master "$@"
+	fi
 	( cd "$2" && git checkout -q "$1" )
 }
 
