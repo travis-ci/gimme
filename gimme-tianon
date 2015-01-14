@@ -83,8 +83,11 @@ _fetch() {
 	mkdir -p "$(dirname "$1")"
 	
 	if [ -d "$1/.git" ]; then
-		# TODO verify that "origin" matches "$GIMME_GO_GIT_REMOTE" and adjust accordingly
-		GIT_DIR="$1/.git" git fetch -q --all
+		(
+			cd "$1"
+			git remote set-url origin "$GIMME_GO_GIT_REMOTE"
+			git fetch -q --all && git fetch -q --tags
+		)
 		return
 	fi
 	
@@ -95,9 +98,11 @@ _fetch() {
 _checkout() {
 	_fetch "$2"
 	( cd "$2" && {
-		git checkout -q "$1" \
-		|| { [ "$1" = 'tip' ] && git checkout -q master; } \
-		|| git checkout -q "go$1"
+		git reset -q --hard "origin/$1" \
+		|| git reset -q --hard "origin/go$1" \
+		|| { [ "$1" = 'tip' ] && git reset -q --hard origin/master; } \
+		|| git reset -q --hard "refs/tags/$1" \
+		|| git reset -q --hard "refs/tags/go$1"
 	} 2>/dev/null )
 }
 
