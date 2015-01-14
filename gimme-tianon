@@ -20,6 +20,12 @@ case "$GIMME_ARCH" in
 	arm*) GIMME_ARCH=arm ;;
 esac
 
+unset GOARCH
+unset GOBIN
+unset GOOS
+unset GOPATH
+unset GOROOT
+
 # _do_curl "url" "file"
 _do_curl() {
 	mkdir -p "$(dirname "$2")"
@@ -130,11 +136,28 @@ _env() {
 	[ -d "$1/bin" -a -x "$1/bin/go" ] || return
 	
 	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source automatically
-	[ "$("$1/bin/go" env GOROOT 2>/dev/null)" = "$1" ] || return
+	GOROOT="$1" "$1/bin/go" version &> /dev/null || return
 	
 	# https://twitter.com/davecheney/status/431581286918934528
+	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
+	
 	echo
-	echo 'export GOOS="'"$GIMME_OS"'" GOARCH="'"$GIMME_ARCH"'"'
+	if [ "$(GOROOT="$1" "$1/bin/go" env GOHOSTOS)" = "$GIMME_OS" ]; then
+		echo 'unset GOOS'
+	else
+		echo 'export GOOS="'"$GIMME_OS"'"'
+	fi
+	if [ "$(GOROOT="$1" "$1/bin/go" env GOHOSTARCH)" = "$GIMME_ARCH" ]; then
+		echo 'unset GOARCH'
+	else
+		echo 'export GOARCH="'"$GIMME_ARCH"'"'
+	fi
+	if ! "$1/bin/go" version &> /dev/null; then
+		# if "go version" fails without GOROOT, then we probably need GOROOT
+		echo 'export GOROOT="'"$1"'"'
+	else
+		echo 'unset GOROOT'
+	fi
 	echo 'export PATH="'"$1/bin"':$PATH"'
 	echo
 }
