@@ -6,8 +6,13 @@ set -o errexit
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
 : ${GIMME_TMP:=${TMPDIR%/*}/gimme}
+: ${GIMME_BINARIES_DIR:=${GIMME_TMP}/binaries}
+: ${GIMME_SOURCE_DIR:=${GIMME_TMP}/source}
+: ${GIMME_LOGS_DIR:=${GIMME_TMP}/logs}
 : ${GIMME_V:=}
 : ${GIMME_CURL_OPTS:=--progress}
+: ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
+: ${GIMME_GO_TAG_REGEX:=^(go|weekly|release|tip)}
 
 if [[ $GIMME_DEBUG ]] ; then
   set -o xtrace
@@ -58,7 +63,7 @@ Influential env vars include:
 
 System/shell dependencies:
 
-  basename cat curl date echo mkdir popd pushd tar tee tput uname
+  basename cat curl date echo git mkdir popd pushd tar tee tput uname
 
 EOF
 }
@@ -98,9 +103,12 @@ function __gimme_download_and_unpack() {
     __gimme_error "Install dest already exists: '$install_dest'"
   fi
 
-  pushd "${GIMME_TMP}/binaries" >/dev/null
+  pushd "${GIMME_BINARIES_DIR}" >/dev/null
 
   if [[ ${GIMME_KNOWN_GO_BINARY_CRAZY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
+    if [[ "$GIMME_OS" == darwin ]] ; then
+      __gimme_error "There is no tarball available for '$version' on darwin"
+    fi
     download_url="$(__gimme_binary_crazy_legacy_version_url "$version")"
   elif [[ ${GIMME_KNOWN_GO_BINARY_LEGACY_VERSIONS[*]} =~ $version ]] ; then
     download_url="$(__gimme_binary_legacy_version_url "$version")"
@@ -108,13 +116,22 @@ function __gimme_download_and_unpack() {
     if [[ "$GIMME_OS" == darwin ]] ; then
       # FIXME: support more than osx10.8?
       GIMME_ARCH="${GIMME_ARCH}-osx10.8"
+
+      if [[ $version =~ 1.0.[12] ]] ; then
+        __gimme_error "There is no tarball available for '$version' on darwin"
+      fi
     fi
     download_url="$(__gimme_binary_version_url "$version")"
+  elif [[ $version =~ ${GIMME_GO_TAG_REGEX} ]] ; then
+    __gimme_info "Detected tag-like version.  Attempting source install"
+    __gimme_install_from_source "$version" "$install_dest"
+    popd >/dev/null
+    return
   else
     __gimme_error "How does one download version '$version'?"
   fi
 
-  binary_dest="${GIMME_TMP}/binaries/$(basename "$download_url")"
+  binary_dest="${GIMME_BINARIES_DIR}/$(basename "$download_url")"
 
   __gimme_info "Download url: '$download_url'"
   __gimme_info "Local binary dest: '$binary_dest'"
@@ -130,6 +147,71 @@ function __gimme_download_and_unpack() {
   tar xz${GIMME_V}f "$binary_dest" --strip-components 1 
 
   popd >/dev/null
+  popd >/dev/null
+}
+
+function __gimme_install_from_source() {
+  local version="$1"
+  local install_dest="$2"
+  local branch_name="gimme-tmp-$version"
+  local build_log="${GIMME_LOGS_DIR}/go-$version-build.log"
+
+  if [[ ${version} == tip ]] ; then
+    __gimme_info "Using version 'master' instead of 'tip'"
+    version=master
+  fi
+
+  __gimme_clone_go_source
+
+  pushd "${GIMME_SOURCE_DIR}/go" >/dev/null
+
+  if git branch "$branch_name" ; then
+    __gimme_info "Created temporary branch '$branch_name'"
+  fi
+
+  git checkout "$branch_name"
+
+  if git reset --hard $version ; then
+    __gimme_info "Reset git working copy to '$version'"
+  else
+    __gimme_error "Failed to reset git working copy to '$version'"
+  fi
+
+  unset GOARCH
+  unset GOOS
+  unset GOPATH
+  unset GOBIN
+  unset GOROOT
+
+  export GOBIN="${install_dest}/bin"
+  export PATH="${GOBIN}:${PATH}"
+  export GOROOT="${install_dest}"
+
+  pushd src >/dev/null
+
+  __gimme_info "Cleaning source tree"
+  git clean -dfx
+
+  __gimme_info "Building go at '$version'"
+  __gimme_info "Build output: '${build_log}'"
+  ./make.bash &> "${build_log}"
+
+  popd >/dev/null
+  popd >/dev/null
+}
+
+function __gimme_clone_go_source() {
+  pushd "${GIMME_SOURCE_DIR}" >/dev/null
+
+  if [[ -d go/.git ]] ; then
+    __gimme_info "Found existing git clone.  Updating..."
+    pushd go >/dev/null
+    git fetch --all
+    popd >/dev/null
+    return
+  fi
+
+  git clone "${GIMME_GO_GIT_REMOTE}" go
   popd >/dev/null
 }
 
@@ -155,7 +237,11 @@ function main() {
 
   __gimme_info "Using version=${GIMME_GO_VERSION}, os=${GIMME_OS}, arch=${GIMME_ARCH}, dest=${GIMME_INSTALL_DEST}"
 
-  mkdir -p "${GIMME_TMP}/binaries" $(dirname "$GIMME_INSTALL_DEST") $(dirname "${GIMME_ENV_DEST}")
+  mkdir -p "${GIMME_BINARIES_DIR}" \
+           "${GIMME_SOURCE_DIR}" \
+           "${GIMME_LOGS_DIR}" \
+           "$(dirname "$GIMME_INSTALL_DEST")" \
+           "$(dirname "${GIMME_ENV_DEST}")"
 
   __gimme_download_and_unpack "${GIMME_GO_VERSION}" "${GIMME_INSTALL_DEST}"
 

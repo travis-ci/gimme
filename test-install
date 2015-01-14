@@ -9,8 +9,17 @@ function die() {
 function main() {
   [[ $GIMME_ENVS_DIR ]] || die 'Missing $GIMME_ENVS_DIR'
   [[ $GIMME_VERSIONS_DIR ]] || die 'Missing $GIMME_VERSIONS_DIR'
+  : ${UNAME:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 
   for version in $* ; do
+    if [[ ${UNAME} == darwin ]] ; then
+      case $version in
+        go1|1.0.2|1.0.3)
+          echo "$version tarball not available for darwin"
+          continue
+          ;;
+      esac
+    fi
     ./gimme $version
     source $GIMME_ENVS_DIR/$version
     go version

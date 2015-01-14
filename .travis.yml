@@ -9,4 +9,6 @@ env:
   - GIMME_ENVS_DIR="/var/tmp/gimme/envs"
   - GIMME_VERSIONS_DIR="/var/tmp/gimme/versions"
   - GIMME_CURL_OPTS="-s"
-script: ./test-install $(< known-binary-versions)
+script:
+- ./test-install $(< known-binary-versions)
+- ./test-install $(< known-source-versions)
