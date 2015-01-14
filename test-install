@@ -14,7 +14,7 @@ function main() {
   for version in $* ; do
     if [[ ${UNAME} == darwin ]] ; then
       case $version in
-        go1|1.0.2|1.0.3)
+        go1|1.0.1|1.0.2)
           echo "$version tarball not available for darwin"
           continue
           ;;
