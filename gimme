@@ -12,7 +12,7 @@ set -o errexit
 : ${GIMME_V:=}
 : ${GIMME_CURL_OPTS:=--progress}
 : ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
-: ${GIMME_GO_TAG_REGEX:=^(go|weekly|release|tip)}
+: ${GIMME_GO_TAG_REGEX:=^(go|weekly|release|tip|master)}
 
 if [[ $GIMME_DEBUG ]] ; then
   set -o xtrace
