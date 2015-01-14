@@ -21,7 +21,7 @@ gimme help
 
 To install version 1.4, for example:
 ``` bash
-gimme 1.4
+GIMME_GO_VERSION=1.4 gimme
 ```
 
 Or run without installing:
