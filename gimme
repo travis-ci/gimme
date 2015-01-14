@@ -58,18 +58,7 @@ Influential env vars include:
 
 System/shell dependencies:
 
-  basename
-  cat
-  curl
-  date
-  echo
-  mkdir
-  popd
-  pushd
-  tar
-  tee
-  tput
-  uname
+  basename cat curl date echo mkdir popd pushd tar tee tput uname
 
 EOF
 }
