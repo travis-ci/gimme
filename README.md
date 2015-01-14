@@ -29,3 +29,12 @@ Or run without installing:
 ``` bash
 GIMME_GO_VERSION=1.4 curl -sL https://raw.githubusercontent.com/meatballhat/gimme/master/gimme | bash
 ```
+
+## `goenv` compatibility
+
+As [goenv](https://github.com/wfarr/goenv) doesn't care much how binaries get into the versions dir, compatibility looks
+like this:
+
+``` bash
+GIMME_VERSIONS_DIR=${HOME}/.goenv/versions
+```
