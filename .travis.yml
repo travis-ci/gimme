@@ -12,3 +12,4 @@ env:
 script:
 - ./test-install $(< known-binary-versions)
 - ./test-install $(< known-source-versions)
+- for v in $(< known-binary-versions) $(< known-source-versions); do GIMME_GO_VERSION=$v ./gimme-tianon; done
