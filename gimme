@@ -156,7 +156,7 @@ _try_binary() {
 	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return
 	_extract "${bin_tgz}" "${bin_dir}" || return
 	_env "${bin_dir}" | tee "${bin_env}"
-	echo >&2 "gemme env: ${bin_env}"
+	echo >&2 "GIMME_ENV=\"${bin_env}\""
 }
 
 _try_source() {
@@ -168,7 +168,7 @@ _try_source() {
 	_extract "${src_tgz}" "${src_dir}" || return
 	_compile "${src_dir}" || return
 	_env "${src_dir}" | tee "${src_env}"
-	echo >&2 "gemme env: ${src_env}"
+	echo >&2 "GIMME_ENV=\"${src_env}\""
 }
 
 _try_git() {
@@ -178,7 +178,7 @@ _try_git() {
 	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return
 	_compile "${git_dir}" || return
 	_env "${git_dir}" | tee "${git_env}"
-	echo >&2 "gemme env: ${git_env}"
+	echo >&2 "GIMME_ENV=\"${git_env}\""
 }
 
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
