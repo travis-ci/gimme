@@ -8,5 +8,5 @@ env:
   - GIMME_TMP="/var/tmp/gimme"
 script:
 - for v in $(< .known-binary-versions) $(< .known-source-versions) ; do
-    ./gimme $v ;
+    ./gimme $v || exit 1 ;
   done
