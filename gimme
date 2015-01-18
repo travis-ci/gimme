@@ -151,7 +151,7 @@ _env() {
 _try_binary() {
 	local bin_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.tar.gz"
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
-	local bin_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
+	local bin_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
 
 	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return
 	_extract "${bin_tgz}" "${bin_dir}" || return
@@ -162,7 +162,7 @@ _try_binary() {
 _try_source() {
 	local src_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.src.tar.gz"
 	local src_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
-	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src"
+	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
 
 	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return
 	_extract "${src_tgz}" "${src_dir}" || return
@@ -173,7 +173,7 @@ _try_source() {
 
 _try_git() {
 	local git_dir="${GIMME_VERSION_PREFIX}/go"
-	local git_env="${GIMME_ENV_PREFIX}/go.git"
+	local git_env="${GIMME_ENV_PREFIX}/go.git.env"
 
 	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return
 	_compile "${git_dir}" || return
