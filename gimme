@@ -1,20 +1,201 @@
 #!/bin/bash
+# vim:noexpandtab:ts=2:sw=2:
 set -e
+
+[[ ${GIMME_DEBUG} ]] && set -x
+
+# _do_curl "url" "file"
+_do_curl() {
+	mkdir -p "$(dirname "${2}")"
+
+	if command -v curl > /dev/null ; then
+		curl -sSLf "${1}" -o "${2}" 2>/dev/null
+		return
+	fi
+
+	if command -v wget > /dev/null ; then
+		wget -q "${1}" -O "${2}" 2>/dev/null
+		return
+	fi
+
+	echo >&2 'error: no curl or wget found'
+	exit 1
+}
+
+# _do_curls "file" "url" ["url"...]
+_do_curls() {
+	f="${1}"
+	shift
+	[[ ! -s "${f}" ]] || return 0
+	for url in "${@}" ; do
+		if _do_curl "${url}" "${f}" ; then
+			return
+		fi
+	done
+	rm -f "${f}"
+	return 1
+}
+
+# _binary "version" "file.tar.gz"
+_binary() {
+	urls=(
+		"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+	)
+	if [ "${GIMME_OS}" = 'darwin' -a "${GIMME_BINARY_OSX}" ] ; then
+		urls=(
+			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}-${GIMME_BINARY_OSX}.tar.gz"
+			"${urls[@]}"
+		)
+	fi
+	_do_curls "${2}" "${urls[@]}"
+}
+
+# _source "version" "file.src.tar.gz"
+_source() {
+	urls=(
+		"https://storage.googleapis.com/golang/go${1}.src.tar.gz"
+		"https://go.googlecode.com/files/go${1}.src.tar.gz"
+		"https://go.googlecode.com/files/go.${1}.src.tar.gz"
+	)
+	_do_curls "${2}" "${urls[@]}"
+}
+
+# _fetch "dir"
+_fetch() {
+	mkdir -p "$(dirname "${1}")"
+
+	if [[ -d "${1}/.git" ]] ; then
+		(
+			cd "${1}"
+			git remote set-url origin "${GIMME_GO_GIT_REMOTE}"
+			git fetch -q --all && git fetch -q --tags
+		)
+		return
+	fi
+
+	git clone -q "${GIMME_GO_GIT_REMOTE}" "${1}"
+}
+
+# _checkout "version" "dir"
+_checkout() {
+	_fetch "${2}"
+	( cd "${2}" && {
+		git reset -q --hard "origin/${1}" \
+		|| git reset -q --hard "origin/go${1}" \
+		|| { [[ "${1}" = 'tip' ]] && git reset -q --hard origin/master ; } \
+		|| git reset -q --hard "refs/tags/${1}" \
+		|| git reset -q --hard "refs/tags/go${1}"
+	} 2>/dev/null )
+}
+
+# _extract "file.tar.gz" "dir"
+_extract() {
+	mkdir -p "${2}"
+	tar -xf "${1}" -C "${2}" --strip-components 1
+}
+
+# _compile "dir"
+_compile() {
+	(
+		cd "${1}"
+		if [[ -d .git ]] ; then
+			git clean -dfx -q
+		fi
+		cd src
+		export GOOS="${GIMME_OS}" GOARCH="${GIMME_ARCH}"
+		./make.bash &> ../make.${GOOS}.${GOARCH}.log
+	)
+}
+
+# _env "dir"
+_env() {
+	[ -d "${1}/bin" -a -x "${1}/bin/go" ] || return
+
+	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
+	# automatically
+	GOROOT="${1}" "${1}/bin/go" version &> /dev/null || return
+
+	# https://twitter.com/davecheney/status/431581286918934528
+	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
+
+	echo
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" ]] ; then
+		echo 'unset GOOS'
+	else
+		echo 'export GOOS="'"${GIMME_OS}"'"'
+	fi
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]] ; then
+		echo 'unset GOARCH'
+	else
+		echo 'export GOARCH="'"${GIMME_ARCH}"'"'
+	fi
+	if ! "${1}/bin/go" version &> /dev/null ; then
+		# if "go version" fails without GOROOT, then we probably need GOROOT
+		echo 'export GOROOT="'"${1}"'"'
+	else
+		echo 'unset GOROOT'
+	fi
+	echo 'export PATH="'"${1}/bin"':${PATH}"'
+	echo
+}
+
+_try_binary() {
+	local bin_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.tar.gz"
+	local bin_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
+	local bin_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
+
+	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return
+	_extract "${bin_tgz}" "${bin_dir}" || return
+	_env "${bin_dir}" | tee "${bin_env}"
+	echo >&2 "gemme env: ${bin_env}"
+}
+
+_try_source() {
+	local src_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.src.tar.gz"
+	local src_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
+	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src"
+
+	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return
+	_extract "${src_tgz}" "${src_dir}" || return
+	_compile "${src_dir}" || return
+	_env "${src_dir}" | tee "${src_env}"
+	echo >&2 "gemme env: ${src_env}"
+}
+
+_try_git() {
+	local git_dir="${GIMME_VERSION_PREFIX}/go"
+	local git_env="${GIMME_ENV_PREFIX}/go.git"
+
+	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return
+	_compile "${git_dir}" || return
+	_env "${git_dir}" | tee "${git_env}"
+	echo >&2 "gemme env: ${git_env}"
+}
 
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
+: ${GIMME_ENV_PREFIX:=${HOME}/.gimme/envs}
+: ${GIMME_VERSION_PREFIX:=${HOME}/.gimme/versions}
 : ${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}
 : ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
 : ${GIMME_BINARY_OSX:=osx10.8}
 
-if [ -z "$GIMME_GO_VERSION" ]; then
+: ${GIMME_GO_VERSION:=${1}}
+shift || true
+: ${GIMME_VERSION_PREFIX:=${1}}
+shift || true
+
+if [[ -z "${GIMME_GO_VERSION}" ]] ; then
 	echo >&2 'error: no GIMME_GO_VERSION supplied'
-	echo >&2 "  ex: GIMME_GO_VERSION=1.4 $0 $@"
+	echo >&2 "  ex: GIMME_GO_VERSION=1.4 ${0} ${@}"
+	echo >&2 "  ex: ${0} 1.4 ${@}"
 	exit 1
 fi
 
-case "$GIMME_ARCH" in
+case "${GIMME_ARCH}" in
 	x86_64) GIMME_ARCH=amd64 ;;
 	x86) GIMME_ARCH=386 ;;
 	arm*) GIMME_ARCH=arm ;;
@@ -26,185 +207,20 @@ unset GOOS
 unset GOPATH
 unset GOROOT
 
-# _do_curl "url" "file"
-_do_curl() {
-	mkdir -p "$(dirname "$2")"
-	
-	if command -v curl > /dev/null; then
-		curl -sSLf "$1" -o "$2" 2>/dev/null
-		return
-	fi
-	
-	if command -v wget > /dev/null; then
-		wget -q "$1" -O "$2" 2>/dev/null
-		return
-	fi
-	
-	echo >&2 'error: no curl or wget found'
-	exit 1
-}
+mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 
-# _do_curls "file" "url" ["url"...]
-_do_curls() {
-	f="$1"
-	shift
-	[ ! -s "$f" ] || return 0
-	for url in "$@"; do
-		if _do_curl "$url" "$f"; then
-			return
-		fi
-	done
-	rm -f "$f"
-	return 1
-}
-
-# _binary "version" "file.tar.gz"
-_binary() {
-	urls=(
-		"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
-		"https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
-		"https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
-	)
-	if [ "$GIMME_OS" = 'darwin' -a "$GIMME_BINARY_OSX" ]; then
-		urls=(
-			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}-${GIMME_BINARY_OSX}.tar.gz"
-			"${urls[@]}"
-		)
-	fi
-	_do_curls "$2" "${urls[@]}"
-}
-
-# _source "version" "file.src.tar.gz"
-_source() {
-	urls=(
-		"https://storage.googleapis.com/golang/go${1}.src.tar.gz"
-		"https://go.googlecode.com/files/go${1}.src.tar.gz"
-		"https://go.googlecode.com/files/go.${1}.src.tar.gz"
-	)
-	_do_curls "$2" "${urls[@]}"
-}
-
-# _fetch "dir"
-_fetch() {
-	mkdir -p "$(dirname "$1")"
-	
-	if [ -d "$1/.git" ]; then
-		(
-			cd "$1"
-			git remote set-url origin "$GIMME_GO_GIT_REMOTE"
-			git fetch -q --all && git fetch -q --tags
-		)
-		return
-	fi
-	
-	git clone -q "$GIMME_GO_GIT_REMOTE" "$1"
-}
-
-# _checkout "version" "dir"
-_checkout() {
-	_fetch "$2"
-	( cd "$2" && {
-		git reset -q --hard "origin/$1" \
-		|| git reset -q --hard "origin/go$1" \
-		|| { [ "$1" = 'tip' ] && git reset -q --hard origin/master; } \
-		|| git reset -q --hard "refs/tags/$1" \
-		|| git reset -q --hard "refs/tags/go$1"
-	} 2>/dev/null )
-}
-
-# _extract "file.tar.gz" "dir"
-_extract() {
-	mkdir -p "$2"
-	tar -xf "$1" -C "$2" --strip-components 1
-}
-
-# _compile "dir"
-_compile() {
-	(
-		cd "$1"
-		if [ -d .git ]; then
-			git clean -dfx -q
-		fi
-		cd src
-		export GOOS="$GIMME_OS" GOARCH="$GIMME_ARCH"
-		./make.bash &> ../make.$GOOS.$GOARCH.log
-	)
-}
-
-# _env "dir"
-_env() {
-	[ -d "$1/bin" -a -x "$1/bin/go" ] || return
-	
-	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source automatically
-	GOROOT="$1" "$1/bin/go" version &> /dev/null || return
-	
-	# https://twitter.com/davecheney/status/431581286918934528
-	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
-	
-	echo
-	if [ "$(GOROOT="$1" "$1/bin/go" env GOHOSTOS)" = "$GIMME_OS" ]; then
-		echo 'unset GOOS'
-	else
-		echo 'export GOOS="'"$GIMME_OS"'"'
-	fi
-	if [ "$(GOROOT="$1" "$1/bin/go" env GOHOSTARCH)" = "$GIMME_ARCH" ]; then
-		echo 'unset GOARCH'
-	else
-		echo 'export GOARCH="'"$GIMME_ARCH"'"'
-	fi
-	if ! "$1/bin/go" version &> /dev/null; then
-		# if "go version" fails without GOROOT, then we probably need GOROOT
-		echo 'export GOROOT="'"$1"'"'
-	else
-		echo 'unset GOROOT'
-	fi
-	echo 'export PATH="'"$1/bin"':$PATH"'
-	echo
-}
-
-_try_binary() {
-	local binTgz="$GIMME_TMP/go$GIMME_GO_VERSION.$GIMME_OS.$GIMME_ARCH.tar.gz"
-	local binDir="$GIMME_TMP/go$GIMME_GO_VERSION.$GIMME_OS.$GIMME_ARCH"
-	
-	_binary "$GIMME_GO_VERSION" "$binTgz" || return
-	_extract "$binTgz" "$binDir" || return
-	_env "$binDir"
-}
-
-_try_source() {
-	local srcTgz="$GIMME_TMP/go$GIMME_GO_VERSION.src.tar.gz"
-	local srcDir="$GIMME_TMP/go$GIMME_GO_VERSION.src"
-	
-	_source "$GIMME_GO_VERSION" "$srcTgz" || return
-	_extract "$srcTgz" "$srcDir" || return
-	_compile "$srcDir" || return
-	_env "$srcDir"
-}
-
-_try_git() {
-	local gitDir="$GIMME_TMP/go"
-	
-	_checkout "$GIMME_GO_VERSION" "$gitDir" || return
-	_compile "$gitDir" || return
-	_env "$gitDir"
-}
-
-main() {
-	if ! case "$GIMME_TYPE" in
-		binary) _try_binary ;;
-		source) _try_source || _try_git ;;
-		git)    _try_git ;;
-		auto)   _try_binary || _try_source || _try_git ;;
-		*)
-			echo >&2 "I don't know how to '$GIMME_TYPE'."
-			echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
-			exit 1
-			;;
-	esac; then
-		echo >&2 "I don't have any idea what to do with '$GIMME_GO_VERSION'."
-		echo >&2 "  (using type '$GIMME_TYPE')"
+if ! case "${GIMME_TYPE}" in
+	binary) _try_binary ;;
+	source) _try_source || _try_git ;;
+	git)    _try_git ;;
+	auto)   _try_binary || _try_source || _try_git ;;
+	*)
+		echo >&2 "I don't know how to '${GIMME_TYPE}'."
+		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
 		exit 1
-	fi
-}
-
-main
+		;;
+esac ; then
+	echo >&2 "I don't have any idea what to do with '${GIMME_GO_VERSION}'."
+	echo >&2 "  (using type '${GIMME_TYPE}')"
+	exit 1
+fi
