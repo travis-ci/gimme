@@ -84,7 +84,7 @@ _checkout() {
 	( cd "${2}" && {
 		git reset -q --hard "origin/${1}" \
 		|| git reset -q --hard "origin/go${1}" \
-		|| { [[ "${1}" = 'tip' ]] && git reset -q --hard origin/master ; } \
+		|| { [ "${1}" = 'tip' ] && git reset -q --hard origin/master ; } \
 		|| git reset -q --hard "refs/tags/${1}" \
 		|| git reset -q --hard "refs/tags/go${1}"
 	} 2>/dev/null )
@@ -99,12 +99,19 @@ _extract() {
 # _compile "dir"
 _compile() {
 	(
+		local bootstrap_root="${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_ARCH}"
+		if [ ! -d "${bootstrap_root}" ] ; then
+			echo >&2 "error: Missing bootstrap installation at ${bootstrap_root}"
+			echo >&2 "error: Unable to compile go from git clone"
+			return
+		fi
 		cd "${1}"
 		if [[ -d .git ]] ; then
 			git clean -dfx -q
 		fi
 		cd src
 		export GOOS="${GIMME_OS}" GOARCH="${GIMME_ARCH}"
+		export GOROOT_BOOTSTRAP="${bootstrap_root}"
 		./make.bash &> ../make.${GOOS}.${GOARCH}.log
 	)
 }
