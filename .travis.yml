@@ -5,7 +5,8 @@ os:
 - linux
 env:
   global:
-  - GIMME_TMP="/var/tmp/gimme"
-script: for v in $(< .known-binary-versions) $(< .known-source-versions) ; do
-          ./gimme $v
-        done
+  - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
+  - GIMME_DEBUG=1
+  - GO_VERSIONS="$(< .known-binary-versions) $(< .known-source-versions)"
+before_script: mkdir -p "${GIMME_TMP}"
+script: for v in $GO_VERSIONS ; do ./gimme $v ; done
