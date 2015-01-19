@@ -112,7 +112,8 @@ _compile() {
 		cd src
 		export GOOS="${GIMME_OS}" GOARCH="${GIMME_ARCH}"
 		export GOROOT_BOOTSTRAP="${bootstrap_root}"
-		./make.bash &> ../make.${GOOS}.${GOARCH}.log
+		local make_log="${1}/make.${GOOS}.${GOARCH}.log"
+		./make.bash &> $make_log
 	)
 }
 
