@@ -6,7 +6,6 @@ os:
 env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
-  - GIMME_DEBUG=1
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
 before_script: mkdir -p "${GIMME_TMP}"
