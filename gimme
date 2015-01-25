@@ -99,8 +99,15 @@ _extract() {
 # _compile "dir"
 _compile() {
 	(
-		local bootstrap_root="${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_ARCH}"
-		if [ ! -d "${bootstrap_root}" ] ; then
+		local bootstrap_root=""
+		for bootstrap_root in \
+			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_ARCH}" \
+			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_HOSTARCH}" ; do
+			if [ -d "${bootstrap_root}" ] ; then
+				break
+			fi
+		done
+		if [ -z "${bootstrap_root}" ] ; then
 			echo >&2 "error: Missing bootstrap installation at ${bootstrap_root}"
 			echo >&2 "error: Unable to compile go from git clone"
 			return
@@ -184,6 +191,7 @@ _try_git() {
 
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
+: ${GIMME_HOSTARCH:=$(uname -m)}
 : ${GIMME_ENV_PREFIX:=${HOME}/.gimme/envs}
 : ${GIMME_VERSION_PREFIX:=${HOME}/.gimme/versions}
 : ${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}
@@ -220,6 +228,7 @@ if [[ "${GIMME_GO_VERSION}" =~ -h|--help|help|wat ]] ; then
 	echo "                         (default '${GIMME_TYPE}')"
 	echo "  GIMME_VERSION_PREFIX - prefix for installed versions (default '${GIMME_VERSION_PREFIX}',"
 	echo "                         may be given as second positional arg)"
+	echo "           GIMME_DEBUG - enable tracing if non-empty"
 	echo
 	exit 0
 fi
