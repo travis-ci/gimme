@@ -9,4 +9,4 @@ env:
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
 before_script: mkdir -p "${GIMME_TMP}"
-script: for v in $GO_VERSIONS ; do ./gimme $v ; done
+script: for v in $GO_VERSIONS ; do echo "---> ./gimme $v" ; ./gimme $v ; done
