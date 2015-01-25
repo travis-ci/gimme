@@ -9,8 +9,10 @@ Install go, yay!
 Install from github:
 
 ``` bash
-curl -sL -o ${PATH%%:*}/gimme https://raw.githubusercontent.com/meatballhat/gimme/master/gimme
-chmod +x ${PATH%%:*}/gimme
+# assumes ~/bin exists and is in $PATH, so adjust accordingly!
+
+curl -sL -o ~/bin/gimme https://raw.githubusercontent.com/meatballhat/gimme/master/gimme
+chmod +x ~/bin/gimme
 ```
 
 Then check the help text a la:
