@@ -196,18 +196,40 @@ shift || true
 : ${GIMME_VERSION_PREFIX:=${1}}
 shift || true
 
+case "${GIMME_ARCH}" in
+	x86_64) GIMME_ARCH=amd64 ;;
+	x86) GIMME_ARCH=386 ;;
+	arm*) GIMME_ARCH=arm ;;
+esac
+
+if [[ "${GIMME_GO_VERSION}" =~ -h|--help|help|wat ]] ; then
+	echo "Usage: $(basename $0) [go-version] [version-prefix]"
+	echo
+	echo "Install go!"
+	echo
+	echo "Influential env vars:"
+	echo
+	echo "            GIMME_ARCH - arch to install (default '${GIMME_ARCH}')"
+	echo "      GIMME_BINARY_OSX - darwin-specific binary suffix (default '${GIMME_BINARY_OSX}')"
+	echo "      GIMME_ENV_PREFIX - prefix for env files (default '${GIMME_ENV_PREFIX}')"
+	echo "   GIMME_GO_GIT_REMOTE - git remote for git-based install (default '${GIMME_GO_GIT_REMOTE}')"
+	echo "      GIMME_GO_VERSION - version to install (*REQUIRED*, may be given as first positional arg)"
+	echo "              GIMME_OS - os to install (default '${GIMME_OS}')"
+	echo "             GIMME_TMP - temp directory (default '${GIMME_TMP}')"
+	echo "            GIMME_TYPE - install type to perform ('auto', 'binary', 'source', or 'git')"
+	echo "                         (default '${GIMME_TYPE}')"
+	echo "  GIMME_VERSION_PREFIX - prefix for installed versions (default '${GIMME_VERSION_PREFIX}',"
+	echo "                         may be given as second positional arg)"
+	echo
+	exit 0
+fi
+
 if [[ -z "${GIMME_GO_VERSION}" ]] ; then
 	echo >&2 'error: no GIMME_GO_VERSION supplied'
 	echo >&2 "  ex: GIMME_GO_VERSION=1.4 ${0} ${@}"
 	echo >&2 "  ex: ${0} 1.4 ${@}"
 	exit 1
 fi
-
-case "${GIMME_ARCH}" in
-	x86_64) GIMME_ARCH=amd64 ;;
-	x86) GIMME_ARCH=386 ;;
-	arm*) GIMME_ARCH=arm ;;
-esac
 
 unset GOARCH
 unset GOBIN
