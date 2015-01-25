@@ -8,12 +8,15 @@ env:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
+  - GO_ARM_VERSIONS="$(< .known-source-versions-$UNAME)"
 before_script: mkdir -p "${GIMME_TMP}"
 script: for v in $GO_VERSIONS ; do
     echo "---> ./gimme $v" ;
     ./gimme $v ;
-    if [[ $UNAME = linux ]] ; then
+  done ;
+  if [[ $UNAME = linux ]] ; then
+    for v in $GO_ARM_VERSIONS ; do
       echo "---> GIMME_ARCH=arm ./gimme $v" ;
       GIMME_ARCH=arm ./gimme $v ;
-    fi ;
-  done ;
+    done ;
+  fi ;
