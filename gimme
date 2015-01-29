@@ -101,14 +101,17 @@ _compile() {
 	(
 		local bootstrap_root=""
 		for candidate in \
+			"${GIMME_VERSION_PREFIX}/go1.4.1.${GIMME_OS}.${GIMME_ARCH}" \
+			"${GIMME_VERSION_PREFIX}/go1.4.1.${GIMME_OS}.${GIMME_HOSTARCH}" \
 			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_ARCH}" \
 			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_HOSTARCH}" ; do
 			if [ -d "${candidate}" ] ; then
+				bootstrap_root="${candidate}"
 				break
 			fi
 		done
 		if [ -z "${bootstrap_root}" ] ; then
-			echo >&2 "error: Missing bootstrap installation at ${bootstrap_root}"
+			echo >&2 "error: Missing bootstrap installation"
 			echo >&2 "error: Unable to compile go from git clone"
 			return
 		fi
