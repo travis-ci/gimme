@@ -159,6 +159,23 @@ _env() {
 	echo
 }
 
+# _env_alias "dir" "env-file"
+_env_alias() {
+	if [[ "${GIMME_NO_ENV_ALIAS}" ]] ; then
+		echo "${2}"
+		return
+	fi
+
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}"  && \
+        "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]] ; then
+		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.env"
+		cp "${2}" "${dest}"
+		echo "${dest}"
+	else
+		echo "${2}"
+	fi
+}
+
 _try_binary() {
 	local bin_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.tar.gz"
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
@@ -167,7 +184,7 @@ _try_binary() {
 	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return
 	_extract "${bin_tgz}" "${bin_dir}" || return
 	_env "${bin_dir}" | tee "${bin_env}"
-	echo >&2 "GIMME_ENV=\"${bin_env}\""
+	echo "export GIMME_ENV=\"$(_env_alias "${bin_dir}" "${bin_env}")\""
 }
 
 _try_source() {
@@ -179,7 +196,7 @@ _try_source() {
 	_extract "${src_tgz}" "${src_dir}" || return
 	_compile "${src_dir}" || return
 	_env "${src_dir}" | tee "${src_env}"
-	echo >&2 "GIMME_ENV=\"${src_env}\""
+	echo "export GIMME_ENV=\"$(_env_alias "${src_dir}" "${src_env}")\""
 }
 
 _try_git() {
@@ -189,7 +206,7 @@ _try_git() {
 	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return
 	_compile "${git_dir}" || return
 	_env "${git_dir}" | tee "${git_env}"
-	echo >&2 "GIMME_ENV=\"${git_env}\""
+	echo "export GIMME_ENV=\"$(_env_alias "${git_dir}" "${git_env}")\""
 }
 
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
@@ -238,14 +255,15 @@ if [[ "${GIMME_GO_VERSION}" =~ -h|--help|help|wat ]] ; then
 	echo "  GIMME_VERSION_PREFIX - prefix for installed versions (default '${GIMME_VERSION_PREFIX}',"
 	echo "                         may be given as second positional arg)"
 	echo "           GIMME_DEBUG - enable tracing if non-empty"
+	echo "    GIMME_NO_ENV_ALIAS - disable creation of env 'alias' file when os and arch match host"
 	echo
 	exit 0
 fi
 
 if [[ -z "${GIMME_GO_VERSION}" ]] ; then
 	echo >&2 'error: no GIMME_GO_VERSION supplied'
-	echo >&2 "  ex: GIMME_GO_VERSION=1.4 ${0} ${@}"
-	echo >&2 "  ex: ${0} 1.4 ${@}"
+	echo >&2 "  ex: GIMME_GO_VERSION=1.4.1 ${0} ${@}"
+	echo >&2 "  ex: ${0} 1.4.1 ${@}"
 	exit 1
 fi
 
