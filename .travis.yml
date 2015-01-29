@@ -11,9 +11,6 @@ env:
   - GO_ARM_VERSIONS="$(< .known-source-versions-$UNAME)"
 before_script: mkdir -p "${GIMME_TMP}"
 script:
-- make
-- git diff --exit-code --quiet
-- git diff --cached --exit-code --quiet
 - for v in $GO_VERSIONS ; do
     echo "---> ./gimme $v" ;
     ./gimme $v ;
