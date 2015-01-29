@@ -147,20 +147,19 @@ _extract() {
 _compile() {
 	(
 		local bootstrap_root=""
-		local bootstrap_arch_candidates=(
-			$(ls -1d "${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_ARCH}" 2>/dev/null)
+		shopt -s nullglob
+		local bootstrap_candidates=(
+			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_ARCH}"
+			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_HOSTARCH}"
 		)
-		local bootstrap_hostarch_candidates=(
-			$(ls -1d "${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_HOSTARCH}" 2>/dev/null)
-		)
-		if [ "${#bootstrap_arch_candidates[@]}" -gt 0 ]; then
-			bootstrap_root="$bootstrap_arch_candidates"
-		elif [ "${#bootstrap_hostarch_candidates[@]}" -gt 0 ]; then
-			bootstrap_root="$bootstrap_hostarch_candidates"
+		if [ "${#bootstrap_candidates[@]}" -gt 0 ]; then
+			bootstrap_root="$bootstrap_candidates"
 		fi
+		shopt -u nullglob
 		if [ -z "${bootstrap_root}" ] ; then
 			echo >&2 "error: Missing bootstrap installation"
 			echo >&2 "error: Unable to compile go from git clone"
+			false
 			return
 		fi
 		cd "${1}"
