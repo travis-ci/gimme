@@ -1,5 +1,5 @@
 UNAME := $(shell uname)
-VERSION := $(shell cat VERSION)
+VERSION := $(shell git describe --always --tags)
 GIT ?= git
 SED ?= sed
 ifeq ($(UNAME), Darwin)
@@ -7,9 +7,5 @@ ifeq ($(UNAME), Darwin)
 endif
 
 .PHONY: update-version
-update-version: VERSION
+update-version:
 	$(SED) -i "s/^GIMME_VERSION=.*/GIMME_VERSION=$(VERSION)/" gimme
-
-.PHONY: tag-release
-tag-release: VERSION
-	$(GIT) tag -a -m 'Tagging $(VERSION)' $(VERSION)

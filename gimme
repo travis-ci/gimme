@@ -49,7 +49,7 @@ set -e
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION=v0.1.0
+GIMME_VERSION=v0.1.0-8-gb1dbfdf
 
 # _do_curl "url" "file"
 _do_curl() {
