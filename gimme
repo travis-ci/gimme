@@ -167,7 +167,7 @@ _env_alias() {
 	fi
 
 	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}"  && \
-        "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]] ; then
+		"$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]] ; then
 		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.env"
 		cp "${2}" "${dest}"
 		ln -sf "${dest}" "${GIMME_ENV_PREFIX}/latest.env"
