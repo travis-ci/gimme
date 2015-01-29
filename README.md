@@ -37,5 +37,5 @@ gimme 1.4 | source /dev/stdin
 Or run without installing:
 
 ``` bash
-eval "$(GIMME_GO_VERSION=1.4 curl -sL https://raw.githubusercontent.com/meatballhat/gimme/master/gimme | bash)"
+eval "$(curl -sL https://raw.githubusercontent.com/meatballhat/gimme/master/gimme | GIMME_GO_VERSION=1.4 bash)"
 ```

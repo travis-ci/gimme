@@ -203,6 +203,7 @@ _env() {
 		echo 'unset GOROOT'
 	fi
 	echo 'export PATH="'"${1}/bin"':${PATH}"'
+	echo 'echo >&2 "# $(go version)"'
 	echo
 }
 
