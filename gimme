@@ -100,10 +100,10 @@ _extract() {
 _compile() {
 	(
 		local bootstrap_root=""
-		for bootstrap_root in \
+		for candidate in \
 			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_ARCH}" \
 			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_HOSTARCH}" ; do
-			if [ -d "${bootstrap_root}" ] ; then
+			if [ -d "${candidate}" ] ; then
 				break
 			fi
 		done
@@ -208,6 +208,12 @@ case "${GIMME_ARCH}" in
 	x86_64) GIMME_ARCH=amd64 ;;
 	x86) GIMME_ARCH=386 ;;
 	arm*) GIMME_ARCH=arm ;;
+esac
+
+case "${GIMME_HOSTARCH}" in
+	x86_64) GIMME_HOSTARCH=amd64 ;;
+	x86) GIMME_HOSTARCH=386 ;;
+	arm*) GIMME_HOSTARCH=arm ;;
 esac
 
 if [[ "${GIMME_GO_VERSION}" =~ -h|--help|help|wat ]] ; then
