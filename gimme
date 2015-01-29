@@ -155,12 +155,10 @@ _compile() {
 		if [ "${#bootstrap_candidates[@]}" -gt 0 ]; then
 			bootstrap_root="$bootstrap_candidates"
 		fi
-		shopt -u nullglob
 		if [ -z "${bootstrap_root}" ] ; then
 			echo >&2 "error: Missing bootstrap installation"
 			echo >&2 "error: Unable to compile go from git clone"
-			false
-			return
+			return 1
 		fi
 		cd "${1}"
 		if [[ -d .git ]] ; then
