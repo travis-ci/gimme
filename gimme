@@ -1,8 +1,55 @@
 #!/bin/bash
 # vim:noexpandtab:ts=2:sw=2:
+#
+#+  Usage: $(basename $0) [go-version] [version-prefix]
+#+  -
+#+  Install go!
+#+  Version: ${GIMME_VERSION}
+#+  -
+#+  Influential env vars:
+#+  -
+#+        GIMME_GO_VERSION - version to install (*REQUIRED*, may be given as first positional arg)
+#+    GIMME_VERSION_PREFIX - prefix for installed versions (default '${GIMME_VERSION_PREFIX}',
+#+                           may be given as second positional arg)
+#+              GIMME_ARCH - arch to install (default '${GIMME_ARCH}')
+#+        GIMME_BINARY_OSX - darwin-specific binary suffix (default '${GIMME_BINARY_OSX}')
+#+        GIMME_ENV_PREFIX - prefix for env files (default '${GIMME_ENV_PREFIX}')
+#+     GIMME_GO_GIT_REMOTE - git remote for git-based install (default '${GIMME_GO_GIT_REMOTE}')
+#+                GIMME_OS - os to install (default '${GIMME_OS}')
+#+               GIMME_TMP - temp directory (default '${GIMME_TMP}')
+#+              GIMME_TYPE - install type to perform ('auto', 'binary', 'source', or 'git')
+#+                           (default '${GIMME_TYPE}')
+#+             GIMME_DEBUG - enable tracing if non-empty
+#+      GIMME_NO_ENV_ALIAS - disable creation of env 'alias' file when os and arch match host
+#+  -
+#
+# The MIT License (MIT)
+#
+# Copyright (c) 2015 Dan Buch, Tianon Gravi
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 set -e
 
 [[ ${GIMME_DEBUG} ]] && set -x
+
+GIMME_VERSION=v0.1.0-8-gb1dbfdf
 
 # _do_curl "url" "file"
 _do_curl() {
@@ -100,17 +147,18 @@ _extract() {
 _compile() {
 	(
 		local bootstrap_root=""
-		for bootstrap_root in \
-			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_ARCH}" \
-			"${GIMME_VERSION_PREFIX}/go1.4.${GIMME_OS}.${GIMME_HOSTARCH}" ; do
-			if [ -d "${bootstrap_root}" ] ; then
-				break
-			fi
-		done
+		shopt -s nullglob
+		local bootstrap_candidates=(
+			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_ARCH}"
+			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_HOSTARCH}"
+		)
+		if [ "${#bootstrap_candidates[@]}" -gt 0 ]; then
+			bootstrap_root="$bootstrap_candidates"
+		fi
 		if [ -z "${bootstrap_root}" ] ; then
-			echo >&2 "error: Missing bootstrap installation at ${bootstrap_root}"
+			echo >&2 "error: Missing bootstrap installation"
 			echo >&2 "error: Unable to compile go from git clone"
-			return
+			return 1
 		fi
 		cd "${1}"
 		if [[ -d .git ]] ; then
@@ -153,7 +201,26 @@ _env() {
 		echo 'unset GOROOT'
 	fi
 	echo 'export PATH="'"${1}/bin"':${PATH}"'
+	echo 'echo >&2 "# $(go version)"'
 	echo
+}
+
+# _env_alias "dir" "env-file"
+_env_alias() {
+	if [[ "${GIMME_NO_ENV_ALIAS}" ]] ; then
+		echo "${2}"
+		return
+	fi
+
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}"  && \
+		"$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]] ; then
+		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.env"
+		cp "${2}" "${dest}"
+		ln -sf "${dest}" "${GIMME_ENV_PREFIX}/latest.env"
+		echo "${dest}"
+	else
+		echo "${2}"
+	fi
 }
 
 _try_binary() {
@@ -164,7 +231,7 @@ _try_binary() {
 	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return
 	_extract "${bin_tgz}" "${bin_dir}" || return
 	_env "${bin_dir}" | tee "${bin_env}"
-	echo >&2 "GIMME_ENV=\"${bin_env}\""
+	echo "export GIMME_ENV=\"$(_env_alias "${bin_dir}" "${bin_env}")\""
 }
 
 _try_source() {
@@ -176,7 +243,7 @@ _try_source() {
 	_extract "${src_tgz}" "${src_dir}" || return
 	_compile "${src_dir}" || return
 	_env "${src_dir}" | tee "${src_env}"
-	echo >&2 "GIMME_ENV=\"${src_env}\""
+	echo "export GIMME_ENV=\"$(_env_alias "${src_dir}" "${src_env}")\""
 }
 
 _try_git() {
@@ -186,7 +253,7 @@ _try_git() {
 	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return
 	_compile "${git_dir}" || return
 	_env "${git_dir}" | tee "${git_env}"
-	echo >&2 "GIMME_ENV=\"${git_env}\""
+	echo "export GIMME_ENV=\"$(_env_alias "${git_dir}" "${git_env}")\""
 }
 
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
@@ -210,33 +277,36 @@ case "${GIMME_ARCH}" in
 	arm*) GIMME_ARCH=arm ;;
 esac
 
-if [[ "${GIMME_GO_VERSION}" =~ -h|--help|help|wat ]] ; then
-	echo "Usage: $(basename $0) [go-version] [version-prefix]"
-	echo
-	echo "Install go!"
-	echo
-	echo "Influential env vars:"
-	echo
-	echo "            GIMME_ARCH - arch to install (default '${GIMME_ARCH}')"
-	echo "      GIMME_BINARY_OSX - darwin-specific binary suffix (default '${GIMME_BINARY_OSX}')"
-	echo "      GIMME_ENV_PREFIX - prefix for env files (default '${GIMME_ENV_PREFIX}')"
-	echo "   GIMME_GO_GIT_REMOTE - git remote for git-based install (default '${GIMME_GO_GIT_REMOTE}')"
-	echo "      GIMME_GO_VERSION - version to install (*REQUIRED*, may be given as first positional arg)"
-	echo "              GIMME_OS - os to install (default '${GIMME_OS}')"
-	echo "             GIMME_TMP - temp directory (default '${GIMME_TMP}')"
-	echo "            GIMME_TYPE - install type to perform ('auto', 'binary', 'source', or 'git')"
-	echo "                         (default '${GIMME_TYPE}')"
-	echo "  GIMME_VERSION_PREFIX - prefix for installed versions (default '${GIMME_VERSION_PREFIX}',"
-	echo "                         may be given as second positional arg)"
-	echo "           GIMME_DEBUG - enable tracing if non-empty"
-	echo
-	exit 0
-fi
+case "${GIMME_HOSTARCH}" in
+	x86_64) GIMME_HOSTARCH=amd64 ;;
+	x86) GIMME_HOSTARCH=386 ;;
+	arm*) GIMME_HOSTARCH=arm ;;
+esac
+
+case "${GIMME_GO_VERSION}" in
+	-h|--help|help|wat)
+		_old_ifs="$IFS"
+		IFS=';'
+		awk '/^#\+  / {
+			sub(/^#\+  /, "", $0) ;
+			sub(/-$/, "", $0) ;
+			print $0
+		}' "$0" | while read line ; do
+			eval "echo \"$line\""
+		done
+		IFS="$_old_ifs"
+		exit 0
+	;;
+	-V|--version|version)
+		echo "${GIMME_VERSION}"
+		exit 0
+	;;
+esac
 
 if [[ -z "${GIMME_GO_VERSION}" ]] ; then
 	echo >&2 'error: no GIMME_GO_VERSION supplied'
-	echo >&2 "  ex: GIMME_GO_VERSION=1.4 ${0} ${@}"
-	echo >&2 "  ex: ${0} 1.4 ${@}"
+	echo >&2 "  ex: GIMME_GO_VERSION=1.4.1 ${0} ${@}"
+	echo >&2 "  ex: ${0} 1.4.1 ${@}"
 	exit 1
 fi
 
