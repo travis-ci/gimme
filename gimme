@@ -288,17 +288,14 @@ _wipe_version() {
 }
 
 _list_versions() {
-	(
-		if [ ! -d "${GIMME_VERSION_PREFIX}" ] ; then
-			return 0
-		fi
+	if [ ! -d "${GIMME_VERSION_PREFIX}" ] ; then
+		return 0
+	fi
 
-		cd "${GIMME_VERSION_PREFIX}"
-		for d in $(ls -1d *) ; do
-			local lessgo="${d#go}"
-			echo "${lessgo/.${GIMME_OS}.*}"
-		done
-	)
+	for d in "${GIMME_VERSION_PREFIX}/go"*".${GIMME_OS}."* ; do
+		local lessgo="${d##*/go}"
+		echo "${lessgo%%.${GIMME_OS}.*}"
+	done
 }
 
 _realpath() {
