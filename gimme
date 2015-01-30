@@ -31,6 +31,7 @@
 #+                           (default '${GIMME_TYPE}')
 #+             GIMME_DEBUG - enable tracing if non-empty
 #+      GIMME_NO_ENV_ALIAS - disable creation of env 'alias' file when os and arch match host
+#+        GIMME_SILENT_ENV - omit the 'go version' line from env file
 #+  -
 #
 # The MIT License (MIT)
@@ -182,6 +183,17 @@ _compile() {
 	)
 }
 
+_can_compile() {
+	cat > "${GIMME_TMP}/test.go" <<'EOF'
+package main
+import "os"
+func main() {
+	os.Exit(0)
+}
+EOF
+	"${1}/bin/go" run "${GIMME_TMP}/test.go"
+}
+
 # _env "dir"
 _env() {
 	[ -d "${1}/bin" -a -x "${1}/bin/go" ] || return
@@ -204,14 +216,16 @@ _env() {
 	else
 		echo 'export GOARCH="'"${GIMME_ARCH}"'"'
 	fi
-	if ! "${1}/bin/go" version &> /dev/null ; then
-		# if "go version" fails without GOROOT, then we probably need GOROOT
+	if ! _can_compile "${1}" >/dev/null 2>&1 ; then
+		# if the compile test fails without GOROOT, then we probably need GOROOT
 		echo 'export GOROOT="'"${1}"'"'
 	else
 		echo 'unset GOROOT'
 	fi
 	echo 'export PATH="'"${1}/bin"':${PATH}"'
-	echo 'echo >&2 "# $(go version)"'
+	if [[ -z "${GIMME_SILENT_ENV}" ]] ; then
+		echo 'go version >&2'
+	fi
 	echo
 }
 
