@@ -14,6 +14,7 @@
 #+          -h --help help - show this help text and exit
 #+    -V --version version - show the version only and exit
 #+        -f --force force - remove the existing go installation if present prior to install
+#+          -l --list list - list installed go versions and exit
 #+  -
 #+  Influential env vars:
 #+  -
@@ -55,6 +56,7 @@
 # SOFTWARE.
 #
 set -e
+shopt -s nullglob
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
@@ -156,7 +158,6 @@ _extract() {
 _compile() {
 	(
 		local bootstrap_root=""
-		shopt -s nullglob
 		local bootstrap_candidates=(
 			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_ARCH}"
 			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_HOSTARCH}"
@@ -286,6 +287,17 @@ _wipe_version() {
 	fi
 }
 
+_list_versions() {
+	if [ ! -d "${GIMME_VERSION_PREFIX}" ] ; then
+		return 0
+	fi
+
+	for d in "${GIMME_VERSION_PREFIX}/go"*".${GIMME_OS}."* ; do
+		local lessgo="${d##*/go}"
+		echo "${lessgo%%.${GIMME_OS}.*}"
+	done
+}
+
 _realpath() {
 	[ -d "$1" ] && echo "$(cd "$1" && pwd)" || echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 }
@@ -344,6 +356,10 @@ case "${1}" in
 	;;
 	-V|--version|version)
 		echo "${GIMME_VERSION}"
+		exit 0
+	;;
+	-l|--list|list)
+		_list_versions
 		exit 0
 	;;
 	-f|--force|force)
