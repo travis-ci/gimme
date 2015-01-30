@@ -11,6 +11,8 @@ env:
   - GO_ARM_VERSIONS="$(< .known-source-versions-$UNAME)"
 before_script: mkdir -p "${GIMME_TMP}"
 script:
+- ./gimme -h
+- ./gimme -V
 - for v in $GO_VERSIONS ; do
     echo "---> eval \"\$(./gimme $v)\"" ;
     eval "$(./gimme $v)" ;
@@ -21,3 +23,4 @@ script:
       eval "$(GIMME_ARCH=arm ./gimme $v)" ;
     done ;
   fi ;
+- ./gimme -l
