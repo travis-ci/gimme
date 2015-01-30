@@ -60,7 +60,7 @@ shopt -s nullglob
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION=v0.2.0
+GIMME_VERSION=v0.2.1
 
 # _do_curl "url" "file"
 _do_curl() {
