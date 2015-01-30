@@ -1,10 +1,19 @@
 #!/bin/bash
 # vim:noexpandtab:ts=2:sw=2:
 #
-#+  Usage: $(basename $0) [go-version] [version-prefix]
+#+  Usage: $(basename $0) [flags] [go-version] [version-prefix]
 #+  -
-#+  Install go!
 #+  Version: ${GIMME_VERSION}
+#+  -
+#+  Install go!  There are multiple types of installations available, with 'auto' being the default.
+#+  If either 'auto' or 'binary' is specified as GIMME_TYPE, gimme will first check for an existing
+#+  go installation.  This behavior may be disabled by providing '-f/--force/force' as first positional
+#+  argument.
+#+  -
+#+  Option flags:
+#+          -h --help help - show this help text and exit
+#+    -V --version version - show the version only and exit
+#+        -f --force force - remove the existing go installation if present prior to install
 #+  -
 #+  Influential env vars:
 #+  -
@@ -49,7 +58,7 @@ set -e
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION=v0.1.0-8-gb1dbfdf
+GIMME_VERSION=v0.1.0-17-gedafb0d
 
 # _do_curl "url" "file"
 _do_curl() {
@@ -223,6 +232,18 @@ _env_alias() {
 	fi
 }
 
+_try_existing() {
+	local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
+	local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
+
+	if [[ -x "${existing_ver}/bin/go" &&  -s "${existing_env}" ]] ; then
+		cat "${existing_env}"
+		return 0
+	fi
+
+	return 1
+}
+
 _try_binary() {
 	local bin_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.tar.gz"
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
@@ -256,6 +277,28 @@ _try_git() {
 	echo "export GIMME_ENV=\"$(_env_alias "${git_dir}" "${git_env}")\""
 }
 
+_wipe_version() {
+	local env_file="${GIMME_ENV_PREFIX}/go${1}.${GIMME_OS}.${GIMME_ARCH}.env"
+
+	if [[ -s "${env_file}" ]] ; then
+		rm -rf "$(awk -F\" '/GOROOT/ { print $2 }' "${env_file}")"
+		rm -f "${env_file}"
+	fi
+}
+
+_realpath() {
+	[ -d "$1" ] && echo "$(cd "$1" && pwd)" || echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+_assert_version_given() {
+	if [[ -z "${GIMME_GO_VERSION}" ]] ; then
+		echo >&2 'error: no GIMME_GO_VERSION supplied'
+		echo >&2 "  ex: GIMME_GO_VERSION=1.4.1 ${0} ${@}"
+		echo >&2 "  ex: ${0} 1.4.1 ${@}"
+		exit 1
+	fi
+}
+
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
 : ${GIMME_HOSTARCH:=$(uname -m)}
@@ -266,10 +309,12 @@ _try_git() {
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
 : ${GIMME_BINARY_OSX:=osx10.8}
 
-: ${GIMME_GO_VERSION:=${1}}
-shift || true
-: ${GIMME_VERSION_PREFIX:=${1}}
-shift || true
+if [[ -n "${1}" ]] ; then
+	GIMME_GO_VERSION="${1}"
+fi
+if [[ -n "${2}" ]] ; then
+	GIMME_VERSION_PREFIX="${2}"
+fi
 
 case "${GIMME_ARCH}" in
 	x86_64) GIMME_ARCH=amd64 ;;
@@ -283,7 +328,7 @@ case "${GIMME_HOSTARCH}" in
 	arm*) GIMME_HOSTARCH=arm ;;
 esac
 
-case "${GIMME_GO_VERSION}" in
+case "${1}" in
 	-h|--help|help|wat)
 		_old_ifs="$IFS"
 		IFS=';'
@@ -301,14 +346,17 @@ case "${GIMME_GO_VERSION}" in
 		echo "${GIMME_VERSION}"
 		exit 0
 	;;
+	-f|--force|force)
+		GIMME_GO_VERSION="${2}"
+		if [[ -n "${3}" ]] ; then
+			GIMME_VERSION_PREFIX="${3}"
+		fi
+		_assert_version_given "$@"
+		_wipe_version "${GIMME_GO_VERSION}"
+	;;
 esac
 
-if [[ -z "${GIMME_GO_VERSION}" ]] ; then
-	echo >&2 'error: no GIMME_GO_VERSION supplied'
-	echo >&2 "  ex: GIMME_GO_VERSION=1.4.1 ${0} ${@}"
-	echo >&2 "  ex: ${0} 1.4.1 ${@}"
-	exit 1
-fi
+_assert_version_given "$@"
 
 unset GOARCH
 unset GOBIN
@@ -318,11 +366,14 @@ unset GOROOT
 
 mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 
+GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
+GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
+
 if ! case "${GIMME_TYPE}" in
-	binary) _try_binary ;;
+	binary) _try_existing || _try_binary ;;
 	source) _try_source || _try_git ;;
 	git)    _try_git ;;
-	auto)   _try_binary || _try_source || _try_git ;;
+	auto)   _try_existing || _try_binary || _try_source || _try_git ;;
 	*)
 		echo >&2 "I don't know how to '${GIMME_TYPE}'."
 		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
