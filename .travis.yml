@@ -2,7 +2,7 @@ language: bash
 sudo: false
 os:
 - linux
-# - osx
+- osx
 env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
