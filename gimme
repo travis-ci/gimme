@@ -56,6 +56,7 @@
 # SOFTWARE.
 #
 set -e
+shopt -s nullglob
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
@@ -157,7 +158,6 @@ _extract() {
 _compile() {
 	(
 		local bootstrap_root=""
-		shopt -s nullglob
 		local bootstrap_candidates=(
 			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_ARCH}"
 			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_HOSTARCH}"
