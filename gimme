@@ -292,9 +292,18 @@ _list_versions() {
 		return 0
 	fi
 
+	local current_version="$(go env GOROOT 2>/dev/null)"
+	current_version="${current_version##*/go}"
+	current_version="${current_version%%.${GIMME_OS}.*}"
+
 	for d in "${GIMME_VERSION_PREFIX}/go"*".${GIMME_OS}."* ; do
-		local lessgo="${d##*/go}"
-		echo "${lessgo%%.${GIMME_OS}.*}"
+		local cleaned="${d##*/go}"
+		cleaned="${cleaned%%.${GIMME_OS}.*}"
+		echo -en "${cleaned}"
+		if [[ $cleaned = $current_version ]] ; then
+			echo -en >&2 ' <= current'
+		fi
+		echo
 	done
 }
 
