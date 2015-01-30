@@ -184,18 +184,14 @@ _compile() {
 }
 
 _can_compile() {
-	(
-		mkdir -p "${GIMME_TMP}/compile-test"
-		cd "${GIMME_TMP}/compile-test"
-		cat > main.go <<EOF
+	cat > "${GIMME_TMP}/test.go" <<'EOF'
 package main
-import "fmt"
+import "os"
 func main() {
-	fmt.Println("compile test")
+	os.Exit(0)
 }
 EOF
-		"${1}/bin/go" get -v ./...
-	)
+	"${1}/bin/go" run "${GIMME_TMP}/test.go"
 }
 
 # _env "dir"
