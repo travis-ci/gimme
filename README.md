@@ -52,6 +52,20 @@ Or run without installing gimme:
 eval "$(curl -sL https://raw.githubusercontent.com/meatballhat/gimme/master/gimme | GIMME_GO_VERSION=1.4 bash)"
 ```
 
+To list installed versions of Go:
+
+``` bash
+gimme -l
+
+# or
+
+gimme --list
+
+# or
+
+gimme list
+```
+
 To force re-installation of an existing Go version:
 ``` bash
 gimme --force 1.4.1
