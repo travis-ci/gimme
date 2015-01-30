@@ -364,10 +364,10 @@ unset GOOS
 unset GOPATH
 unset GOROOT
 
+mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
+
 GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
 GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
-
-mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 
 if ! case "${GIMME_TYPE}" in
 	binary) _try_existing || _try_binary ;;
