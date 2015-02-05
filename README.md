@@ -43,7 +43,8 @@ eval "$(gimme 1.4)"
 
 # or if you can't stand the thought of using `eval`:
 
-gimme 1.4 | source /dev/stdin
+gimme 1.4
+source ~/.gimme/envs/go1.4.env
 ```
 
 Or run without installing gimme:
