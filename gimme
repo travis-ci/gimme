@@ -58,6 +58,7 @@
 #
 set -e
 shopt -s nullglob
+set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
@@ -158,18 +159,24 @@ _extract() {
 # _compile "dir"
 _compile() {
 	(
-		local bootstrap_root=""
-		local bootstrap_candidates=(
-			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_ARCH}"
-			"${GIMME_VERSION_PREFIX}/go1.4"*".${GIMME_OS}.${GIMME_HOSTARCH}"
-		)
-		if [ "${#bootstrap_candidates[@]}" -gt 0 ]; then
-			bootstrap_root="$bootstrap_candidates"
-		fi
-		if [ -z "${bootstrap_root}" ] ; then
-			echo >&2 "error: Missing bootstrap installation"
-			echo >&2 "error: Unable to compile go from git clone"
-			return 1
+		if grep -q GOROOT_BOOTSTRAP "${1}/src/make.bash" &> /dev/null ; then
+			local bootstrap_root=""
+			local bootstrap_candidates=(
+				# we just need _a_ working Go 1.4 build, really
+				"${GIMME_ENV_PREFIX}/go1.4"*".env"
+			)
+			for candidate in "${bootstrap_candidates[@]}" ; do
+				if [ -s "$candidate" ]; then
+					bootstrap_root="$candidate"
+					break
+				fi
+			done
+			if [ -z "${bootstrap_root}" ] ; then
+				echo >&2 "error: Missing bootstrap installation"
+				echo >&2 "error: Unable to compile go from git clone"
+				return 1
+			fi
+			export GOROOT_BOOTSTRAP="$(source "${bootstrap_root}" 2>/dev/null && go env GOROOT)"
 		fi
 		cd "${1}"
 		if [[ -d .git ]] ; then
@@ -177,9 +184,8 @@ _compile() {
 		fi
 		cd src
 		export GOOS="${GIMME_OS}" GOARCH="${GIMME_ARCH}"
-		export GOROOT_BOOTSTRAP="${bootstrap_root}"
 		local make_log="${1}/make.${GOOS}.${GOARCH}.log"
-		./make.bash &> $make_log
+		./make.bash &> $make_log || return 1
 	)
 }
 
@@ -196,11 +202,11 @@ EOF
 
 # _env "dir"
 _env() {
-	[ -d "${1}/bin" -a -x "${1}/bin/go" ] || return
+	[ -d "${1}/bin" -a -x "${1}/bin/go" ] || return 1
 
 	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
 	# automatically
-	GOROOT="${1}" "${1}/bin/go" version &> /dev/null || return
+	GOROOT="${1}" "${1}/bin/go" version &> /dev/null || return 1
 
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
@@ -253,7 +259,7 @@ _try_existing() {
 
 	if [[ -x "${existing_ver}/bin/go" &&  -s "${existing_env}" ]] ; then
 		cat "${existing_env}"
-		return 0
+		return
 	fi
 
 	return 1
@@ -264,31 +270,31 @@ _try_binary() {
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
 	local bin_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
 
-	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return
-	_extract "${bin_tgz}" "${bin_dir}" || return
-	_env "${bin_dir}" | tee "${bin_env}"
+	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return 1
+	_extract "${bin_tgz}" "${bin_dir}" || return 1
+	_env "${bin_dir}" | tee "${bin_env}" || return 1
 	echo "export GIMME_ENV=\"$(_env_alias "${bin_dir}" "${bin_env}")\""
 }
 
 _try_source() {
 	local src_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.src.tar.gz"
 	local src_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
-	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
+	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
 
-	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return
-	_extract "${src_tgz}" "${src_dir}" || return
-	_compile "${src_dir}" || return
-	_env "${src_dir}" | tee "${src_env}"
+	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return 1
+	_extract "${src_tgz}" "${src_dir}" || return 1
+	_compile "${src_dir}" || return 1
+	_env "${src_dir}" | tee "${src_env}" || return 1
 	echo "export GIMME_ENV=\"$(_env_alias "${src_dir}" "${src_env}")\""
 }
 
 _try_git() {
 	local git_dir="${GIMME_VERSION_PREFIX}/go"
-	local git_env="${GIMME_ENV_PREFIX}/go.git.env"
+	local git_env="${GIMME_ENV_PREFIX}/go.git.${GIMME_OS}.${GIMME_ARCH}.env"
 
-	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return
-	_compile "${git_dir}" || return
-	_env "${git_dir}" | tee "${git_env}"
+	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return 1
+	_compile "${git_dir}" || return 1
+	_env "${git_dir}" | tee "${git_env}" || return 1
 	echo "export GIMME_ENV=\"$(_env_alias "${git_dir}" "${git_env}")\""
 }
 
