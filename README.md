@@ -92,3 +92,22 @@ gimme --version
 
 gimme version
 ```
+
+### `.travis.yml`
+
+The original goal of this project was trivial cross-compilation within Travis.  The following is an example `.travis.yml` file to accomplish this for a normal Go project:
+
+```yaml
+language: go
+
+env:
+    - GIMME_OS=linux GIMME_ARCH=amd64
+    - GIMME_OS=darwin GIMME_ARCH=amd64
+    - GIMME_OS=windows GIMME_ARCH=amd64
+
+install:
+    - go get -d -v ./...
+
+script:
+    - go build -v ./...
+```
