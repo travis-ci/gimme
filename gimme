@@ -163,8 +163,9 @@ _compile() {
 			local bootstrap_root=""
 			local bootstrap_candidates=(
 				# we just need _a_ working Go 1.4+ build, really
-				"${GIMME_ENV_PREFIX}/go1.4"*".env"
+				"${GIMME_ENV_PREFIX}/go1.6"*".env"
 				"${GIMME_ENV_PREFIX}/go1.5"*".env"
+				"${GIMME_ENV_PREFIX}/go1.4"*".env"
 			)
 			for candidate in "${bootstrap_candidates[@]}" ; do
 				if [ -s "$candidate" ]; then
