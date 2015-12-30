@@ -109,6 +109,13 @@ _binary() {
 			"${urls[@]}"
 		)
 	fi
+	if [ "${GIMME_ARCH}" = 'arm' ] ; then
+		# attempt "arm6" vs just "arm" first (since that's what's officially published)
+		urls=(
+			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}6.tar.gz"
+			"${urls[@]}"
+		)
+	fi
 	_do_curls "${2}" "${urls[@]}"
 }
 
@@ -362,12 +369,14 @@ fi
 case "${GIMME_ARCH}" in
 	x86_64) GIMME_ARCH=amd64 ;;
 	x86) GIMME_ARCH=386 ;;
+	arm64) ;;
 	arm*) GIMME_ARCH=arm ;;
 esac
 
 case "${GIMME_HOSTARCH}" in
 	x86_64) GIMME_HOSTARCH=amd64 ;;
 	x86) GIMME_HOSTARCH=386 ;;
+	arm64) ;;
 	arm*) GIMME_HOSTARCH=arm ;;
 esac
 
