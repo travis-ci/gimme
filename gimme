@@ -110,9 +110,10 @@ _binary() {
 		)
 	fi
 	if [ "${GIMME_ARCH}" = 'arm' ] ; then
-		# attempt "arm6" vs just "arm" first (since that's what's officially published)
+		# attempt "armv6l" vs just "arm" first (since that's what's officially published)
 		urls=(
-			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}6.tar.gz"
+			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}v6l.tar.gz" # go1.6beta2 & go1.6rc1
+			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}6.tar.gz" # go1.6beta1
 			"${urls[@]}"
 		)
 	fi
