@@ -198,8 +198,13 @@ _compile() {
 		fi
 		cd src
 		export GOOS="${GIMME_OS}" GOARCH="${GIMME_ARCH}"
+
 		local make_log="${1}/make.${GOOS}.${GOARCH}.log"
-		./make.bash &> $make_log || return 1
+		if [ "${GIMME_DEBUG}" > "1" ]; then
+			./make.bash 2>&1 | tee $make_log 1>&2 || return 1
+		else
+			./make.bash &> $make_log || return 1
+		fi
 	)
 }
 
