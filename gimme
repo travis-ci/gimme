@@ -32,6 +32,7 @@
 #+             GIMME_DEBUG - enable tracing if non-empty
 #+      GIMME_NO_ENV_ALIAS - disable creation of env 'alias' file when os and arch match host
 #+        GIMME_SILENT_ENV - omit the 'go version' line from env file
+#+       GIMME_CGO_ENABLED - enable build of cgo support
 #+     GIMME_CC_FOR_TARGET - cross compiler for cgo support
 #+  -
 #
@@ -211,6 +212,7 @@ _compile() {
 		fi
 		cd src
 		export GOOS="${GIMME_OS}" GOARCH="${GIMME_ARCH}"
+		export CGO_ENABLED="${GIMME_CGO_ENABLED}"
 		export CC_FOR_TARGET="${GIMME_CC_FOR_TARGET}"
 
 		local make_log="${1}/make.${GOOS}.${GOARCH}.log"
@@ -459,6 +461,7 @@ unset GOBIN
 unset GOOS
 unset GOPATH
 unset GOROOT
+unset CGO_ENABLED
 unset CC_FOR_TARGET
 
 mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
