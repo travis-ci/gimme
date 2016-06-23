@@ -427,7 +427,13 @@ fi
 case "${GIMME_ARCH}" in
 	x86_64) GIMME_ARCH=amd64 ;;
 	x86) GIMME_ARCH=386 ;;
-	arm64) ;;
+	arm64)
+		if [[ "${GIMME_GO_VERSION}" < "1.5" ]]; then
+			echo >&2 "error: ${GIMME_ARCH} is not supported by this go version"
+			echo >&2 "try go1.5 or newer"
+			exit 1
+		fi
+	;;
 	arm*) GIMME_ARCH=arm ;;
 esac
 
