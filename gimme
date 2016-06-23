@@ -365,33 +365,38 @@ _assert_version_given() {
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
 : ${GIMME_BINARY_OSX:=osx10.8}
 
-case "${1}" in
-	-h|--help|help|wat)
-		_old_ifs="$IFS"
-		IFS=';'
-		awk '/^#\+  / {
-			sub(/^#\+  /, "", $0) ;
-			sub(/-$/, "", $0) ;
-			print $0
-		}' "$0" | while read line ; do
-			eval "echo \"$line\""
-		done
-		IFS="$_old_ifs"
-		exit 0
-	;;
-	-V|--version|version)
-		echo "${GIMME_VERSION}"
-		exit 0
-	;;
-	-l|--list|list)
-		_list_versions
-		exit 0
-	;;
-	-f|--force|force)
-		force=1
-		shift
-	;;
-esac
+while [[ $# -gt 0 ]]; do
+	case "${1}" in
+		-h|--help|help|wat)
+			_old_ifs="$IFS"
+			IFS=';'
+			awk '/^#\+  / {
+				sub(/^#\+  /, "", $0) ;
+				sub(/-$/, "", $0) ;
+				print $0
+			}' "$0" | while read line ; do
+				eval "echo \"$line\""
+			done
+			IFS="$_old_ifs"
+			exit 0
+		;;
+		-V|--version|version)
+			echo "${GIMME_VERSION}"
+			exit 0
+		;;
+		-l|--list|list)
+			_list_versions
+			exit 0
+		;;
+		-f|--force|force)
+			force=1
+		;;
+		*)
+			break
+		;;
+	esac
+	shift
+done
 
 if [[ -n "${1}" ]] ; then
 	GIMME_GO_VERSION="${1}"
