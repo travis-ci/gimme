@@ -375,6 +375,7 @@ _assert_version_given() {
 }
 
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
+: ${GIMME_HOSTOS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
 : ${GIMME_HOSTARCH:=$(uname -m)}
 : ${GIMME_ENV_PREFIX:=${HOME}/.gimme/envs}
