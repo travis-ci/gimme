@@ -15,6 +15,12 @@ curl -sL -o ~/bin/gimme https://raw.githubusercontent.com/travis-ci/gimme/master
 chmod +x ~/bin/gimme
 ```
 
+[Homebrew](http://brew.sh) (OS X):
+
+```bash
+brew install gimme
+```
+
 Then check the help text a la:
 
 ``` bash
