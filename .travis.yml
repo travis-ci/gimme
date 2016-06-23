@@ -11,26 +11,32 @@ env:
   - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
   - GO_ARM_VERSIONS="$(< .known-source-versions-$UNAME)"
   - GO_BOOTSTRAP_VERSION=1.4.1
+  matrix:
+  - TARGET=native
+  - TARGET=arm
 before_script: mkdir -p "${GIMME_TMP}"
 script:
 - ./gimme -h
 - ./gimme -V
-- eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
-  for v in $GO_VERSIONS ; do
-    echo "---> eval \"\$(./gimme $v)\"" ;
-    (
-      eval "$(./gimme $v)" ;
-      [[ "$(go env GOOS)" = "$(go env GOHOSTOS)"
-      && "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1 ;
-    ) || exit 1 ;
-  done ;
-- eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
-  for v in $GO_ARM_VERSIONS ; do
-    echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)\"" ;
-    (
-      eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)" ;
-      [[ "$(go env GOOS)" = 'linux'
-      && "$(go env GOARCH)" = 'arm' ]] || exit 1 ;
-    ) || exit 1 ;
-  done ;
+- if [ "${TARGET}" == "native" ]; then
+    eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
+    for v in $GO_VERSIONS ; do
+      echo "---> eval \"\$(./gimme $v)\"" ;
+      (
+        eval "$(./gimme $v)" ;
+        [[ "$(go env GOOS)" = "$(go env GOHOSTOS)"
+        && "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1 ;
+      ) || exit 1 ;
+    done ;
+  elif [ "${TARGET}" == "arm" ]; then
+    eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
+    for v in $GO_ARM_VERSIONS ; do
+      echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)\"" ;
+      (
+        eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)" ;
+        [[ "$(go env GOOS)" = 'linux'
+        && "$(go env GOARCH)" = 'arm' ]] || exit 1 ;
+      ) || exit 1 ;
+    done ;
+  fi
 - ./gimme -l
