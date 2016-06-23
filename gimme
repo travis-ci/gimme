@@ -187,8 +187,7 @@ _compile() {
 				fi
 			done
 			if [ -z "${bootstrap_root}" ] ; then
-				echo >&2 "error: Missing bootstrap installation"
-				echo >&2 "error: Unable to compile go from git clone"
+				echo >&2 "Unable to setup go bootstrap from existing"
 				return 1
 			fi
 			export GOROOT_BOOTSTRAP="$(source "${bootstrap_root}" 2>/dev/null && go env GOROOT)"
