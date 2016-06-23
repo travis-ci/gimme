@@ -101,28 +101,31 @@ _do_curls() {
 	return 1
 }
 
-# _binary "version" "file.tar.gz"
+# _binary "version" "file.tar.gz" "arch"
 _binary() {
+	local version=${1}
+	local file=${2}
+	local arch=${3}
 	urls=(
-		"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
-		"https://go.googlecode.com/files/go${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
-		"https://go.googlecode.com/files/go.${1}.${GIMME_OS}-${GIMME_ARCH}.tar.gz"
+		"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}.tar.gz"
+		"https://go.googlecode.com/files/go${version}.${GIMME_OS}-${arch}.tar.gz"
+		"https://go.googlecode.com/files/go.${version}.${GIMME_OS}-${arch}.tar.gz"
 	)
 	if [ "${GIMME_OS}" = 'darwin' -a "${GIMME_BINARY_OSX}" ] ; then
 		urls=(
-			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}-${GIMME_BINARY_OSX}.tar.gz"
+			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}-${GIMME_BINARY_OSX}.tar.gz"
 			"${urls[@]}"
 		)
 	fi
-	if [ "${GIMME_ARCH}" = 'arm' ] ; then
+	if [ "${arch}" = 'arm' ] ; then
 		# attempt "armv6l" vs just "arm" first (since that's what's officially published)
 		urls=(
-			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}v6l.tar.gz" # go1.6beta2 & go1.6rc1
-			"https://storage.googleapis.com/golang/go${1}.${GIMME_OS}-${GIMME_ARCH}6.tar.gz" # go1.6beta1
+			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}v6l.tar.gz" # go1.6beta2 & go1.6rc1
+			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}6.tar.gz" # go1.6beta1
 			"${urls[@]}"
 		)
 	fi
-	_do_curls "${2}" "${urls[@]}"
+	_do_curls "${file}" "${urls[@]}"
 }
 
 # _source "version" "file.src.tar.gz"
@@ -293,12 +296,15 @@ _try_existing() {
 	return 1
 }
 
+# _try_binary "version" "arch"
 _try_binary() {
-	local bin_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.tar.gz"
-	local bin_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
-	local bin_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
+	local version=${1}
+	local arch=${2}
+	local bin_tgz="${GIMME_TMP}/go${version}.${GIMME_OS}.${arch}.tar.gz"
+	local bin_dir="${GIMME_VERSION_PREFIX}/go${version}.${GIMME_OS}.${arch}"
+	local bin_env="${GIMME_ENV_PREFIX}/go${version}.${GIMME_OS}.${arch}.env"
 
-	_binary "${GIMME_GO_VERSION}" "${bin_tgz}" || return 1
+	_binary "${version}" "${bin_tgz}" "${arch}" || return 1
 	_extract "${bin_tgz}" "${bin_dir}" || return 1
 	_env "${bin_dir}" | tee "${bin_env}" || return 1
 	echo "export GIMME_ENV=\"$(_env_alias "${bin_dir}" "${bin_env}")\""
@@ -448,10 +454,10 @@ GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
 GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
 
 if ! case "${GIMME_TYPE}" in
-	binary) _try_existing || _try_binary ;;
+	binary) _try_existing || _try_binary "${GIMME_GO_VERSION}" "${GIMME_ARCH}" ;;
 	source) _try_source || _try_git ;;
 	git)    _try_git ;;
-	auto)   _try_existing || _try_binary || _try_source || _try_git ;;
+	auto)   _try_existing || _try_binary  "${GIMME_GO_VERSION}" "${GIMME_ARCH}" || _try_source || _try_git ;;
 	*)
 		echo >&2 "I don't know how to '${GIMME_TYPE}'."
 		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
