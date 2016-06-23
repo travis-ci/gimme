@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # vim:noexpandtab:ts=2:sw=2:
 #
 #+  Usage: $(basename $0) [flags] [go-version] [version-prefix]
@@ -78,7 +78,12 @@ _do_curl() {
 		return
 	fi
 
-	echo >&2 'error: no curl or wget found'
+	if command -v fetch > /dev/null ; then
+		fetch -q "${1}" -o "${2}" 2>/dev/null
+		return
+	fi
+
+	echo >&2 'error: no curl, wget, or fetch found'
 	exit 1
 }
 
