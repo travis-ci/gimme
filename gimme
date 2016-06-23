@@ -365,27 +365,6 @@ _assert_version_given() {
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
 : ${GIMME_BINARY_OSX:=osx10.8}
 
-if [[ -n "${1}" ]] ; then
-	GIMME_GO_VERSION="${1}"
-fi
-if [[ -n "${2}" ]] ; then
-	GIMME_VERSION_PREFIX="${2}"
-fi
-
-case "${GIMME_ARCH}" in
-	x86_64) GIMME_ARCH=amd64 ;;
-	x86) GIMME_ARCH=386 ;;
-	arm64) ;;
-	arm*) GIMME_ARCH=arm ;;
-esac
-
-case "${GIMME_HOSTARCH}" in
-	x86_64) GIMME_HOSTARCH=amd64 ;;
-	x86) GIMME_HOSTARCH=386 ;;
-	arm64) ;;
-	arm*) GIMME_HOSTARCH=arm ;;
-esac
-
 case "${1}" in
 	-h|--help|help|wat)
 		_old_ifs="$IFS"
@@ -409,16 +388,35 @@ case "${1}" in
 		exit 0
 	;;
 	-f|--force|force)
-		GIMME_GO_VERSION="${2}"
-		if [[ -n "${3}" ]] ; then
-			GIMME_VERSION_PREFIX="${3}"
-		fi
-		_assert_version_given "$@"
-		_wipe_version "${GIMME_GO_VERSION}"
+		force=1
+		shift
 	;;
 esac
 
+if [[ -n "${1}" ]] ; then
+	GIMME_GO_VERSION="${1}"
+fi
+if [[ -n "${2}" ]] ; then
+	GIMME_VERSION_PREFIX="${2}"
+fi
+
+case "${GIMME_ARCH}" in
+	x86_64) GIMME_ARCH=amd64 ;;
+	x86) GIMME_ARCH=386 ;;
+	arm64) ;;
+	arm*) GIMME_ARCH=arm ;;
+esac
+
+case "${GIMME_HOSTARCH}" in
+	x86_64) GIMME_HOSTARCH=amd64 ;;
+	x86) GIMME_HOSTARCH=386 ;;
+	arm64) ;;
+	arm*) GIMME_HOSTARCH=arm ;;
+esac
+
 _assert_version_given "$@"
+
+[ ${force} ] && _wipe_version "${GIMME_GO_VERSION}"
 
 unset GOARCH
 unset GOBIN
