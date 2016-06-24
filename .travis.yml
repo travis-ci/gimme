@@ -4,6 +4,7 @@ language: bash
 os:
 - linux
 - osx
+osx_image: xcode7.3
 env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
