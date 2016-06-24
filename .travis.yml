@@ -9,11 +9,11 @@ env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_BOOTSTRAP_VERSION=1.4.1
+  - GO_BOOTSTRAP_VERSION=1.4.3
   matrix:
-  - TARGET=native GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
+  - TARGET=native GO_VERSIONS="$(< .testdata/sample-binary-$UNAME) $(< .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
-  - TARGET=arm64 GO_VERSIONS="$(< .known-binary-versions-$UNAME) master"
+  - TARGET=arm64 GO_VERSIONS="$(< .testdata/sample-binary-$UNAME) master"
 addons:
   apt:
     packages:
