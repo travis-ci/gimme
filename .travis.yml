@@ -9,7 +9,6 @@ env:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
-  - GO_ARM_VERSIONS="$(< .known-source-versions-$UNAME)"
   - GO_BOOTSTRAP_VERSION=1.4.1
   matrix:
   - TARGET=native
@@ -24,7 +23,7 @@ addons:
 before_script:
 - mkdir -p "${GIMME_TMP}"
 - if [[ "${TARGET}" = "arm" ]] ; then
-    export GO_VERSIONS="${GO_ARM_VERSIONS}" ;
+    export GO_VERSIONS="master" ;
   fi
 script:
 - ./gimme -h
