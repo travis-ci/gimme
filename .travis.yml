@@ -8,12 +8,11 @@ env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
   - GO_BOOTSTRAP_VERSION=1.4.1
   matrix:
-  - TARGET=native
-  - TARGET=arm
-  - TARGET=arm64
+  - TARGET=native GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
+  - TARGET=arm GO_VERSIONS="master"
+  - TARGET=arm64 GO_VERSIONS="$(< .known-binary-versions-$UNAME) master"
 addons:
   apt:
     packages:
@@ -22,9 +21,6 @@ addons:
     - libc6-dev-arm64-cross
 before_script:
 - mkdir -p "${GIMME_TMP}"
-- if [[ "${TARGET}" = "arm" ]] ; then
-    export GO_VERSIONS="master" ;
-  fi
 script:
 - ./gimme -h
 - ./gimme -V
