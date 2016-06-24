@@ -1,6 +1,7 @@
 ---
+sudo: required
+dist: trusty
 language: bash
-sudo: false
 os:
 - linux
 - osx
@@ -11,26 +12,52 @@ env:
   - GO_VERSIONS="$(< .known-binary-versions-$UNAME) $(< .known-source-versions-$UNAME)"
   - GO_ARM_VERSIONS="$(< .known-source-versions-$UNAME)"
   - GO_BOOTSTRAP_VERSION=1.4.1
+  matrix:
+  - TARGET=native
+  - TARGET=arm
+  - TARGET=arm64
+addons:
+  apt:
+    packages:
+    # install cross compilers for cgo support.
+    - gcc-aarch64-linux-gnu
+    - libc6-dev-arm64-cross
 before_script: mkdir -p "${GIMME_TMP}"
 script:
 - ./gimme -h
 - ./gimme -V
-- eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
-  for v in $GO_VERSIONS ; do
-    echo "---> eval \"\$(./gimme $v)\"" ;
-    (
-      eval "$(./gimme $v)" ;
-      [[ "$(go env GOOS)" = "$(go env GOHOSTOS)"
-      && "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1 ;
-    ) || exit 1 ;
-  done ;
-- eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
-  for v in $GO_ARM_VERSIONS ; do
-    echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)\"" ;
-    (
-      eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)" ;
-      [[ "$(go env GOOS)" = 'linux'
-      && "$(go env GOARCH)" = 'arm' ]] || exit 1 ;
-    ) || exit 1 ;
-  done ;
+- if [ "${TARGET}" == "native" ]; then
+    eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
+    for v in $GO_VERSIONS ; do
+      echo "---> eval \"\$(./gimme $v)\"" ;
+      (
+        eval "$(./gimme $v)" ;
+        [[ "$(go env GOOS)" = "$(go env GOHOSTOS)"
+        && "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1 ;
+      ) || exit 1 ;
+    done ;
+  elif [ "${TARGET}" == "arm" ]; then
+    eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
+    for v in $GO_ARM_VERSIONS ; do
+      echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)\"" ;
+      (
+        eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)" ;
+        [[ "$(go env GOOS)" = 'linux'
+        && "$(go env GOARCH)" = 'arm' ]] || exit 1 ;
+      ) || exit 1 ;
+    done ;
+  elif [ "${TARGET}" == "arm64" ]; then
+    eval "$(./gimme $GO_BOOTSTRAP_VERSION)" ;
+    for v in $GO_VERSIONS ; do
+      num="$(echo $v | tr -d '[:alpha:]')" ;
+      [[ "$num" < "1.5" && "$v" != "tip" && "$v" != "master" ]] && continue ;
+          if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then cgo=1; else cgo=0; fi ;
+          echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)\"" ;
+      (
+        eval "$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)" ;
+        [[ "$(go env GOOS)" = 'linux'
+        && "$(go env GOARCH)" = 'arm64' ]] || exit 1 ;
+      ) || exit 1 ;
+    done ;
+  fi
 - ./gimme -l
