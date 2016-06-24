@@ -27,8 +27,6 @@ before_script:
     export GO_VERSIONS="${GO_ARM_VERSIONS}" ;
   fi
 script:
-- make
-- git diff --quiet
 - ./gimme -h
 - ./gimme -V
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
