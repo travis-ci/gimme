@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# vim:noexpandtab:ts=2:sw=2:
+
+set -e
+set -o pipefail
+
+main() {
+	local target="${1}"
+	shift
+	local go_bootstrap_version="${1}"
+	shift
+
+  echo "---> using bootstrap version ${go_bootstrap_version}"
+	eval "$(./gimme "${go_bootstrap_version}")"
+
+	_test_${target} "$@"
+}
+
+_test_native() {
+	for v in "${@}" ; do
+		echo "---> eval \"\$(./gimme $v)\""
+		(
+		eval "$(./gimme $v)"
+		[[ "$(go env GOOS)" = "$(go env GOHOSTOS)"
+		&& "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1
+		) || exit 1
+	done
+}
+
+_test_arm() {
+	for v in "${@}" ; do
+		echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)\""
+		(
+		eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)"
+		[[ "$(go env GOOS)" = 'linux'
+		&& "$(go env GOARCH)" = 'arm' ]] || exit 1
+		) || exit 1
+	done
+}
+
+_test_arm64() {
+	for v in "${@}" ; do
+		num="$(echo $v | tr -d '[:alpha:]')"
+		[[ "$num" < "1.5" && "$v" != "tip" && "$v" != "master" ]] && continue
+				if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then cgo=1; else cgo=0; fi
+				echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)\""
+		(
+			eval "$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)"
+			[[ "$(go env GOOS)" = 'linux'
+			&& "$(go env GOARCH)" = 'arm64' ]] || exit 1
+		) || exit 1
+	done
+}
+
+main "$@"
