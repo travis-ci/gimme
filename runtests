@@ -10,7 +10,7 @@ main() {
 	local go_bootstrap_version="${1}"
 	shift
 
-  echo "---> using bootstrap version ${go_bootstrap_version}"
+	echo "---> using bootstrap version ${go_bootstrap_version}"
 	eval "$(./gimme "${go_bootstrap_version}")"
 
 	_test_${target} "$@"
@@ -40,10 +40,13 @@ _test_arm() {
 
 _test_arm64() {
 	for v in "${@}" ; do
-		num="$(echo $v | tr -d '[:alpha:]')"
-		[[ "$num" < "1.5" && "$v" != "tip" && "$v" != "master" ]] && continue
-				if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then cgo=1; else cgo=0; fi
-				echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)\""
+		if [[ "$(echo $v | tr -d '[:alpha:]')" < "1.5" &&
+					"$v" != "tip" && "$v" != "master" ]] ; then
+			echo "---> skipping ${v} because it probably won't work o_o"
+			continue
+		fi
+		if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then cgo=1; else cgo=0; fi
+		echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)\""
 		(
 			eval "$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)"
 			[[ "$(go env GOOS)" = 'linux'
