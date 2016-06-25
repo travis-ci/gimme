@@ -4,6 +4,8 @@
 #+  Usage: $(basename $0) [flags] [go-version] [version-prefix]
 #+  -
 #+  Version: ${GIMME_VERSION}
+#+  Copyright: ${GIMME_COPYRIGHT}
+#+  License URL: ${GIMME_LICENSE_URL}
 #+  -
 #+  Install go!  There are multiple types of installations available, with 'auto' being the default.
 #+  If either 'auto' or 'binary' is specified as GIMME_TYPE, gimme will first check for an existing
@@ -36,35 +38,15 @@
 #+     GIMME_CC_FOR_TARGET - cross compiler for cgo support
 #+  -
 #
-# The MIT License (MIT)
-#
-# Copyright (c) 2015 Dan Buch, Tianon Gravi
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
 set -e
 shopt -s nullglob
 set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION=v0.2.3
+GIMME_VERSION="v0.2.4-63-g8a365f9"
+GIMME_COPYRIGHT="Copyright (c) 2016 Dan Buch, Tianon Gravi, Travis CI GmbH"
+GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/8a365f9/LICENSE"
 
 # _do_curl "url" "file"
 _do_curl() {
