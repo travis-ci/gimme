@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
+
+## [1.0.0] - 2016-06-29
 ### Added
 - Automated construction of known binary versions
 - `Dockerfile`
@@ -62,7 +64,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release!
 
-[Unreleased]: https://github.com/travis-ci/gimme/compare/v0.2.4...HEAD
+[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/travis-ci/gimme/compare/v0.2.4...v1.0.0
 [0.2.4]: https://github.com/travis-ci/gimme/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/travis-ci/gimme/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/travis-ci/gimme/compare/v0.2.1...v0.2.2
