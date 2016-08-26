@@ -40,6 +40,7 @@
 #
 set -e
 shopt -s nullglob
+shopt -s dotglob
 set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
@@ -109,6 +110,11 @@ _binary() {
 			"${urls[@]}"
 		)
 	fi
+	if [ "${GIMME_OS}" = 'windows' ] ; then
+		urls=(
+			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}.zip"
+		)
+	fi
 	_do_curls "${file}" "${urls[@]}"
 }
 
@@ -153,7 +159,14 @@ _checkout() {
 # _extract "file.tar.gz" "dir"
 _extract() {
 	mkdir -p "${2}"
-	tar -xf "${1}" -C "${2}" --strip-components 1
+
+	if [[ "${1}" == *.tar.gz ]] ; then
+		tar -xf "${1}" -C "${2}" --strip-components 1
+	else
+		unzip -q "${1}" -d "${2}"
+		mv "${2}"/go/* "${2}"
+		rmdir "${2}"/go
+	fi
 }
 
 # _setup_bootstrap
@@ -290,6 +303,10 @@ _try_binary() {
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${version}.${GIMME_OS}.${arch}"
 	local bin_env="${GIMME_ENV_PREFIX}/go${version}.${GIMME_OS}.${arch}.env"
 
+	if [ "${GIMME_OS}" = 'windows' ] ; then
+		bin_tgz=${bin_tgz%.tar.gz}.zip
+	fi
+
 	_binary "${version}" "${bin_tgz}" "${arch}" || return 1
 	_extract "${bin_tgz}" "${bin_dir}" || return 1
 	_env "${bin_dir}" | tee "${bin_env}" || return 1
@@ -370,6 +387,17 @@ _assert_version_given() {
 : ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
 : ${GIMME_BINARY_OSX:=osx10.8}
+
+if [[ "${GIMME_OS}" == mingw* ]] ; then
+	# Minimalist GNU for Windows
+	GIMME_OS='windows'
+
+	if [ "${GIMME_ARCH}" = 'i686' ] ; then
+		GIMME_ARCH="386"
+	else
+		GIMME_ARCH="amd64"
+	fi
+fi
 
 while [[ $# -gt 0 ]]; do
 	case "${1}" in
