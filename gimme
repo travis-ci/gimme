@@ -44,9 +44,9 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION="v1.0.0"
+GIMME_VERSION="v1.0.0-9-g97889f2"
 GIMME_COPYRIGHT="Copyright (c) 2016 Dan Buch, Tianon Gravi, Travis CI GmbH"
-GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/b7d56ae/LICENSE"
+GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/97889f2/LICENSE"
 
 # _do_curl "url" "file"
 _do_curl() {
