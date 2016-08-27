@@ -48,7 +48,6 @@ update-copyright:
 		$(AWK) -F/ '{ print $$9 }' | \
 		$(SED) "s/\.$(lastword $(subst -, ,$@)).*//;s/^go//" | \
 		$(SORT) -r | $(UNIQ) > $@
-	if [ -f $@.tail ] ; then $(CAT) $@.tail >> $@ ; fi
 
 .testdata/object-urls:
 	$(CURL) -s https://www.googleapis.com/storage/v1/b/golang/o | \
