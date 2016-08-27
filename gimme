@@ -93,8 +93,6 @@ _binary() {
 	local arch=${3}
 	urls=(
 		"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}.tar.gz"
-		"https://go.googlecode.com/files/go${version}.${GIMME_OS}-${arch}.tar.gz"
-		"https://go.googlecode.com/files/go.${version}.${GIMME_OS}-${arch}.tar.gz"
 	)
 	if [ "${GIMME_OS}" = 'darwin' -a "${GIMME_BINARY_OSX}" ] ; then
 		urls=(
@@ -122,8 +120,7 @@ _binary() {
 _source() {
 	urls=(
 		"https://storage.googleapis.com/golang/go${1}.src.tar.gz"
-		"https://go.googlecode.com/files/go${1}.src.tar.gz"
-		"https://go.googlecode.com/files/go.${1}.src.tar.gz"
+		"https://github.com/golang/go/archive/go${1}.tar.gz"
 	)
 	_do_curls "${2}" "${urls[@]}"
 }
