@@ -36,6 +36,7 @@
 #+        GIMME_SILENT_ENV - omit the 'go version' line from env file
 #+       GIMME_CGO_ENABLED - enable build of cgo support
 #+     GIMME_CC_FOR_TARGET - cross compiler for cgo support
+#+     GIMME_DOWNLOAD_BASE - override base URL dir for download (default '${GIMME_DOWNLOAD_BASE}')
 #+  -
 #
 set -e
@@ -92,25 +93,25 @@ _binary() {
 	local file=${2}
 	local arch=${3}
 	urls=(
-		"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}.tar.gz"
+		"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}.tar.gz"
 	)
 	if [ "${GIMME_OS}" = 'darwin' -a "${GIMME_BINARY_OSX}" ] ; then
 		urls=(
-			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}-${GIMME_BINARY_OSX}.tar.gz"
+			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}-${GIMME_BINARY_OSX}.tar.gz"
 			"${urls[@]}"
 		)
 	fi
 	if [ "${arch}" = 'arm' ] ; then
 		# attempt "armv6l" vs just "arm" first (since that's what's officially published)
 		urls=(
-			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}v6l.tar.gz" # go1.6beta2 & go1.6rc1
-			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}6.tar.gz" # go1.6beta1
+			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}v6l.tar.gz" # go1.6beta2 & go1.6rc1
+			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}6.tar.gz" # go1.6beta1
 			"${urls[@]}"
 		)
 	fi
 	if [ "${GIMME_OS}" = 'windows' ] ; then
 		urls=(
-			"https://storage.googleapis.com/golang/go${version}.${GIMME_OS}-${arch}.zip"
+			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}.zip"
 		)
 	fi
 	_do_curls "${file}" "${urls[@]}"
@@ -119,7 +120,7 @@ _binary() {
 # _source "version" "file.src.tar.gz"
 _source() {
 	urls=(
-		"https://storage.googleapis.com/golang/go${1}.src.tar.gz"
+		"${GIMME_DOWNLOAD_BASE}/go${1}.src.tar.gz"
 		"https://github.com/golang/go/archive/go${1}.tar.gz"
 	)
 	_do_curls "${2}" "${urls[@]}"
@@ -384,6 +385,7 @@ _assert_version_given() {
 : ${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}
 : ${GIMME_TYPE:=auto} # 'auto', 'binary', 'source', or 'git'
 : ${GIMME_BINARY_OSX:=osx10.8}
+: "${GIMME_DOWNLOAD_BASE:=https://storage.googleapis.com/golang}"
 
 if [[ "${GIMME_OS}" == mingw* ]] ; then
 	# Minimalist GNU for Windows
