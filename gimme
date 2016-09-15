@@ -375,6 +375,19 @@ _assert_version_given() {
 	fi
 }
 
+_exclude_from_backups() {
+	# Please avoid anything which requires elevated privileges or is obnoxious
+	# enough to offend the invoker
+	case "${GIMME_HOSTOS}" in
+		darwin)
+			# Darwin: Time Machine is "standard", we can add others.  The default
+			# mechanism is sticky, as an attribute on the dir, requires no
+			# privileges, is idempotent (and doesn't support -- to end flags).
+			tmutil addexclusion "$@"
+			;;
+	esac
+}
+
 : ${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_HOSTOS:=$(uname -s | tr '[:upper:]' '[:lower:]')}
 : ${GIMME_ARCH:=$(uname -m)}
@@ -474,6 +487,12 @@ unset CGO_ENABLED
 unset CC_FOR_TARGET
 
 mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
+# The envs dir stays small and provides a record of what had been installed
+# whereas the versions dir grows by hundreds of MB per version and is not
+# intended to support local modifications (as that subverts the point of gimme)
+# _and_ is a cache, so we're unilaterally declaring that the contents of
+# the versions dir should be excluded from system backups.
+_exclude_from_backups "${GIMME_VERSION_PREFIX}"
 
 GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
 GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
