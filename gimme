@@ -241,24 +241,24 @@ _env() {
 
 	echo
 	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" ]] ; then
-		echo 'unset GOOS'
+		echo 'unset GOOS;'
 	else
-		echo 'export GOOS="'"${GIMME_OS}"'"'
+		echo 'export GOOS="'"${GIMME_OS}"'";'
 	fi
 	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]] ; then
-		echo 'unset GOARCH'
+		echo 'unset GOARCH;'
 	else
-		echo 'export GOARCH="'"${GIMME_ARCH}"'"'
+		echo 'export GOARCH="'"${GIMME_ARCH}"'";'
 	fi
 	if ! _can_compile "${1}" >/dev/null 2>&1 ; then
 		# if the compile test fails without GOROOT, then we probably need GOROOT
-		echo 'export GOROOT="'"${1}"'"'
+		echo 'export GOROOT="'"${1}"'";'
 	else
-		echo 'unset GOROOT'
+		echo 'unset GOROOT;'
 	fi
-	echo 'export PATH="'"${1}/bin"':${PATH}"'
+	echo 'export PATH="'"${1}/bin"':${PATH}";'
 	if [[ -z "${GIMME_SILENT_ENV}" ]] ; then
-		echo 'go version >&2'
+		echo 'go version >&2;'
 	fi
 	echo
 }
@@ -286,7 +286,11 @@ _try_existing() {
 	local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
 
 	if [[ -x "${existing_ver}/bin/go" &&  -s "${existing_env}" ]] ; then
-		cat "${existing_env}"
+		# newer envs have existing semi-colon at end of line, because newer gimme
+		# puts them there; envs created before that change lack those semi-colons
+		# and should gain them, to make it easier for people using eval without
+		# double-quoting the command substition.
+		sed -e 's/\([^;]\)$/\1;/' < "${existing_env}"
 		return
 	fi
 
