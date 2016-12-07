@@ -382,6 +382,36 @@ _realpath() {
 	[ -d "$1" ] && echo "$(cd "$1" && pwd)" || echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 }
 
+_get_curr_stable() {
+	local stable="${GIMME_VERSION_PREFIX}/stable"
+	local age=$((`date +%s` - `stat -c%Y "$stable" 2> /dev/null || echo 0`))
+
+	if [[ $age -gt 86400 ]]; then
+		_update_stable "$stable"
+	fi
+
+	cat "${stable}"
+}
+
+_update_stable() {
+	local exp="go([[:digit:]\.]*)\.src.*"
+	local versions="${GIMME_VERSION_PREFIX}/versions"
+	local url="https://www.googleapis.com/storage/v1/b/golang/o?fields=items%2Fname&maxResults=999999"
+	local vers=""
+
+	_do_curl "${url}" "${versions}"
+
+	while read l; do
+		if [[ "$l" =~ $exp ]]; then
+			vers="$vers\n${BASH_REMATCH[1]}"
+		fi
+	done < "${versions}"
+
+	rm "${versions}"
+
+	echo -e "${vers}" | sort -n -r | head -n1 > "$1"
+}
+
 _assert_version_given() {
 	if [[ -z "${GIMME_GO_VERSION}" ]] ; then
 		echo >&2 'error: no GIMME_GO_VERSION supplied'
@@ -489,6 +519,10 @@ case "${GIMME_HOSTARCH}" in
 	arm64) ;;
 	arm*) GIMME_HOSTARCH=arm ;;
 esac
+
+if [[ "${GIMME_GO_VERSION}" == "stable" ]] ; then
+	GIMME_GO_VERSION=$(_get_curr_stable)
+fi
 
 _assert_version_given "$@"
 
