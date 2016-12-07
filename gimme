@@ -409,7 +409,7 @@ _update_stable() {
 		fi
 	done <"${tmp_versions}"
 
-  rm -f "${tmp_versions}" &>/dev/null
+	rm -f "${tmp_versions}" &>/dev/null
 	echo -e "${vers}" | sort -n -r | head -n1 >"${stable}"
 }
 
