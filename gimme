@@ -384,32 +384,45 @@ _realpath() {
 
 _get_curr_stable() {
 	local stable="${GIMME_VERSION_PREFIX}/stable"
-	local age=$((`date +%s` - `stat -c%Y "$stable" 2> /dev/null || echo 0`))
+	local age
+	age=$(($(date +%s) - $(_stat_unix "${stable}" 2>/dev/null || echo 0)))
 
-	if [[ $age -gt 86400 ]]; then
-		_update_stable "$stable"
+	if [[ "${age}" -gt 86400 ]]; then
+		_update_stable "${stable}"
 	fi
 
 	cat "${stable}"
 }
 
 _update_stable() {
+	local stable="${1}"
 	local exp="go([[:digit:]\.]*)\.src.*"
-	local versions="${GIMME_VERSION_PREFIX}/versions"
+	local tmp_versions="${GIMME_TMP}/versions"
 	local url="https://www.googleapis.com/storage/v1/b/golang/o?fields=items%2Fname&maxResults=999999"
 	local vers=""
 
-	_do_curl "${url}" "${versions}"
+	_do_curl "${url}" "${tmp_versions}"
 
-	while read l; do
-		if [[ "$l" =~ $exp ]]; then
+	while read -r line; do
+		if [[ "${line}" =~ ${exp} ]]; then
 			vers="$vers\n${BASH_REMATCH[1]}"
 		fi
-	done < "${versions}"
+	done <"${tmp_versions}"
 
-	rm "${versions}"
+  rm -f "${tmp_versions}" &>/dev/null
+	echo -e "${vers}" | sort -n -r | head -n1 >"${stable}"
+}
 
-	echo -e "${vers}" | sort -n -r | head -n1 > "$1"
+_stat_unix() {
+	local filename="${1}"
+	case "${GIMME_HOSTOS}" in
+		darwin|*bsd)
+			stat -f %a "${filename}"
+			;;
+		linux)
+			stat -c %Y "${filename}"
+			;;
+	esac
 }
 
 _assert_version_given() {
