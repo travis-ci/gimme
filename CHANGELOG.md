@@ -2,7 +2,23 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
-## [Unreleased]
+## [1.1.0] - 2016-12-07
+### Added
+- Windows binary downloads
+- Custom download base via `${GIMME_DOWNLOAD_BASE}`, suitable for downloading
+  from mirrors
+- Default exclusion of `~/.gimme/versions` from time machine backups on macOS
+
+### Changed
+- Dumped env statements end with `;` for compat with quote-less `eval $(...)`
+- Use existing source version if present
+
+### Removed
+- Support for binary go versions no longer available for download including
+  `go1`, `1.0.1`, `1.0.2`, `1.0.3`, `1.1`, `1.1.1`, `1.1.2`
+
+### Fixed
+- Use `1.7` for bootstrapping on macOS Sierra
 
 ## [1.0.0] - 2016-06-29
 ### Added
@@ -64,7 +80,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release!
 
-[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/travis-ci/gimme/compare/v1.0.4...v1.1.0
 [1.0.0]: https://github.com/travis-ci/gimme/compare/v0.2.4...v1.0.0
 [0.2.4]: https://github.com/travis-ci/gimme/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/travis-ci/gimme/compare/v0.2.2...v0.2.3
