@@ -455,7 +455,7 @@ _exclude_from_backups() {
 }
 
 _versint() {
-	# shellcheck disable=SC2086
+	# shellcheck disable=SC2086 disable=SC2183
 	printf '1%03d%03d%03d%03d' ${1//[^0-9]/ }
 }
 
