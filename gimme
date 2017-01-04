@@ -455,7 +455,7 @@ _exclude_from_backups() {
 }
 
 _versint() {
-	local args=( ${1//[^0-9]/ } )
+	local args=(${1//[^0-9]/ })
 	printf '1%03d%03d%03d%03d' "${args[@]}"
 }
 
