@@ -214,6 +214,10 @@ _compile() {
 		else
 			./make.bash &> $make_log || return 1
 		fi
+
+		# for avoiding https://github.com/golang/go/issues/18486, we have to pre-install -race directory.
+		# -race flag isn't supported on some platform, so skip any errors.
+		../bin/go install -race std 2>/dev/null || return 0
 	)
 }
 
