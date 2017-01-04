@@ -456,7 +456,7 @@ _exclude_from_backups() {
 
 _versint() {
 	# shellcheck disable=SC2046 disable=SC2116 disable=SC2183
-	printf '1%03d%03d%03d%03d' $(echo "${1//./ }")
+	printf '1%03d%03d%03d%03d' $(echo "${1//[^0-9]/ }")
 }
 
 : "${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}"
