@@ -42,6 +42,7 @@
 set -e
 shopt -s nullglob
 shopt -s dotglob
+shopt -s extglob
 set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
@@ -433,12 +434,32 @@ _stat_unix() {
 }
 
 _assert_version_given() {
+	# By the time we're called, aliases such as "stable" must have been resolved
+	# but we could be a reference in git.
+	#
+	# Versions can include suffices such as in "1.8beta2", so our assumption is that
+	# there will always be a minor present; the first public release was "1.0" so
+	# we assume "2.0" not "2".
+
 	if [[ -z "${GIMME_GO_VERSION}" ]]; then
 		echo >&2 'error: no GIMME_GO_VERSION supplied'
 		echo >&2 "  ex: GIMME_GO_VERSION=1.4.1 ${0} ${*}"
 		echo >&2 "  ex: ${0} 1.4.1 ${*}"
 		exit 1
 	fi
+
+	if [[ "${GIMME_GO_VERSION}" == +([[:digit:]]).+([[:digit:]])* ]] ; then
+		return 0
+	fi
+
+	if [[ "${GIMME_TYPE}" == "auto" || "${GIMME_TYPE}" == "git" ]]; then
+		local git_dir="${GIMME_VERSION_PREFIX}/go"
+		_checkout "${GIMME_GO_VERSION}" "${git_dir}" && return 0
+	fi
+
+	echo >&2 'error: GIMME_GO_VERSION not recognized as valid'
+	echo >&2 "  got: ${GIMME_GO_VERSION}"
+	exit 1
 }
 
 _exclude_from_backups() {
@@ -470,6 +491,16 @@ _versint() {
 : "${GIMME_TYPE:=auto}" # 'auto', 'binary', 'source', or 'git'
 : "${GIMME_BINARY_OSX:=osx10.8}"
 : "${GIMME_DOWNLOAD_BASE:=https://storage.googleapis.com/golang}"
+
+# The version prefix must be an absolute path
+case "${GIMME_VERSION_PREFIX}" in
+	/*) true ;;
+	*)
+		echo >&2 " Fixing GIMME_VERSION_PREFIX from relative: $GIMME_VERSION_PREFIX"
+		GIMME_VERSION_PREFIX="$(pwd)/${GIMME_VERSION_PREFIX}"
+		echo >&2 " to: $GIMME_VERSION_PREFIX"
+		;;
+esac
 
 if [[ "${GIMME_OS}" == mingw* ]]; then
 	# Minimalist GNU for Windows
@@ -507,6 +538,9 @@ while [[ $# -gt 0 ]]; do
 			;;
 		-f | --force | force)
 			force=1
+			;;
+		-i|install)
+			true # ignore a dummy argument
 			;;
 		*)
 			break
