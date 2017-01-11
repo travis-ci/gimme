@@ -13,44 +13,40 @@ main() {
 	echo "---> using bootstrap version ${go_bootstrap_version}"
 	eval "$(./gimme "${go_bootstrap_version}")"
 
-	_test_${target} "$@"
+	"_test_${target}" "$@"
 }
 
 _test_native() {
-	for v in "${@}" ; do
-		echo "---> eval \"\$(./gimme $v)\""
+	for v in "${@}"; do
+		echo "---> eval \$(./gimme ${v})"
 		(
-		eval "$(./gimme $v)"
-		[[ "$(go env GOOS)" = "$(go env GOHOSTOS)"
-		&& "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1
+			eval "$(./gimme "${v}")"
+			[[ "$(go env GOOS)" = "$(go env GOHOSTOS)" && "$(go env GOARCH)" = "$(go env GOHOSTARCH)" ]] || exit 1
 		) || exit 1
 	done
 }
 
 _test_arm() {
-	for v in "${@}" ; do
-		echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)\""
+	for v in "${@}"; do
+		echo "---> eval \$(GIMME_OS=linux GIMME_ARCH=arm ./gimme ${v})"
 		(
-		eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme $v)"
-		[[ "$(go env GOOS)" = 'linux'
-		&& "$(go env GOARCH)" = 'arm' ]] || exit 1
+			eval "$(GIMME_OS=linux GIMME_ARCH=arm ./gimme "${v}")"
+			[[ "$(go env GOOS)" = 'linux' && "$(go env GOARCH)" = 'arm' ]] || exit 1
 		) || exit 1
 	done
 }
 
 _test_arm64() {
-	for v in "${@}" ; do
-		if [[ "$(echo $v | tr -d '[:alpha:]')" < "1.5" &&
-					"$v" != "tip" && "$v" != "master" ]] ; then
+	for v in "${@}"; do
+		if [[ "$(echo "${v}" | tr -d '[:alpha:]' | tr -d '.' | cut -b1-2)" -lt 15 && "${v}" != "tip" && "${v}" != "master" ]]; then
 			echo "---> skipping ${v} because it probably won't work o_o"
 			continue
 		fi
 		if [[ "$TRAVIS_OS_NAME" = "linux" ]]; then cgo=1; else cgo=0; fi
-		echo "---> eval \"\$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)\""
+		echo "---> eval \$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)"
 		(
-			eval "$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)"
-			[[ "$(go env GOOS)" = 'linux'
-			&& "$(go env GOARCH)" = 'arm64' ]] || exit 1
+			eval "$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme "${v}")"
+			[[ "$(go env GOOS)" = 'linux' && "$(go env GOARCH)" = 'arm64' ]] || exit 1
 		) || exit 1
 	done
 }

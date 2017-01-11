@@ -1,15 +1,22 @@
-sudo: required
-dist: trusty
 language: bash
+sudo: false
+dist: trusty
 os:
 - linux
 - osx
+cache:
+  directories:
+  - "${HOME}/bin"
 osx_image: xcode7.3
 env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - GO_BOOTSTRAP_VERSION=1.7.4
+  - GOPATH="${HOME}/gopath"
+  - PATH="${HOME}/bin:${PATH}"
+  - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.4.tar.bz2"
+  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.0.0/shfmt_v1.0.0_linux_amd64"
   matrix:
   - TARGET=native GO_VERSIONS="$(< .testdata/sample-binary-$UNAME) $(< .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
@@ -23,6 +30,17 @@ addons:
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
+- if [ $UNAME = linux ] && ! shellcheck --version; then
+    curl -sSL "${SHELLCHECK_URL}" | tar -C "${HOME}/bin" -xjf -;
+    shellcheck --version;
+  fi
+- if ! command -v shfmt ; then
+    curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt" ;
+    chmod +x "${HOME}/bin/shfmt" ;
+  fi
+- if [ $UNAME = linux ]; then make lint; fi
+- git diff --exit-code
+- git diff --cached --exit-code
 - ./gimme -h
 - ./gimme -V
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
