@@ -28,10 +28,16 @@ KNOWN_BINARY_VERSIONS_FILES := \
 	.testdata/sample-binary-linux
 
 .PHONY: all
-all: update-version update-copyright $(KNOWN_BINARY_VERSIONS_FILES)
+all: lint update-version update-copyright $(KNOWN_BINARY_VERSIONS_FILES)
 
+.PHONY: clean
 clean:
 	$(RM) $(KNOWN_BINARY_VERSIONS_FILES) .testdata/object-urls
+
+.PHONY: lint
+lint:
+	git grep -l '^#!/usr/bin/env bash' | xargs shellcheck
+	git grep -l '^#!/usr/bin/env bash' | xargs shfmt -i 0 -w
 
 .PHONY: update-version
 update-version:
