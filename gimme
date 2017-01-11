@@ -448,7 +448,7 @@ _assert_version_given() {
 		exit 1
 	fi
 
-	if [[ "${GIMME_GO_VERSION}" == +([[:digit:]]).+([[:digit:]])* ]] ; then
+	if [[ "${GIMME_GO_VERSION}" == +([[:digit:]]).+([[:digit:]])* ]]; then
 		return 0
 	fi
 
@@ -539,7 +539,7 @@ while [[ $# -gt 0 ]]; do
 		-f | --force | force)
 			force=1
 			;;
-		-i|install)
+		-i | install)
 			true # ignore a dummy argument
 			;;
 		*)
