@@ -77,13 +77,29 @@ _do_curl() {
 	exit 1
 }
 
+_sha256sum() {
+	if which sha256sum >/dev/null; then
+		sha256sum "$@"
+	else
+		shasum -a 256 "$@"
+	fi
+}
+
 # _do_curls "file" "url" ["url"...]
 _do_curls() {
 	f="${1}"
 	shift
-	[[ ! -s "${f}" ]] || return 0
+	if _sha256sum -c "${f}.sha256" &>/dev/null; then
+		return 0
+	fi
 	for url in "${@}"; do
 		if _do_curl "${url}" "${f}"; then
+			if _do_curl "${url}.sha256" "${f}.sha256"; then
+				echo "  ${f}" >>"${f}.sha256"
+				if ! _sha256sum -c "${f}.sha256" >/dev/null; then
+					exit 1
+				fi
+			fi
 			return
 		fi
 	done
