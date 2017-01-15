@@ -31,6 +31,8 @@
 #+               GIMME_TMP - temp directory (default '${GIMME_TMP}')
 #+              GIMME_TYPE - install type to perform ('auto', 'binary', 'source', or 'git')
 #+                           (default '${GIMME_TYPE}')
+#+      GIMME_INSTALL_RACE - install race directory after compile if non-empty.
+#+                           If the install type is 'binary', this option is ignored.
 #+             GIMME_DEBUG - enable tracing if non-empty
 #+      GIMME_NO_ENV_ALIAS - disable creation of env 'alias' file when os and arch match host
 #+        GIMME_SILENT_ENV - omit the 'go version' line from env file
@@ -223,6 +225,13 @@ _compile() {
 	)
 }
 
+_try_install_race() {
+	if [[ ! "${GIMME_INSTALL_RACE}" ]]; then
+		return 0
+	fi
+	"${1}/bin/go" install -race std
+}
+
 _can_compile() {
 	cat >"${GIMME_TMP}/test.go" <<'EOF'
 package main
@@ -341,6 +350,7 @@ _try_source() {
 	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return 1
 	_extract "${src_tgz}" "${src_dir}" || return 1
 	_compile "${src_dir}" || return 1
+	_try_install_race "${src_dir}" || return 1
 	_env "${src_dir}" | tee "${src_env}" || return 1
 	echo "export GIMME_ENV=\"$(_env_alias "${src_dir}" "${src_env}")\""
 }
@@ -351,6 +361,7 @@ _try_git() {
 
 	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return 1
 	_compile "${git_dir}" || return 1
+	_try_install_race "${git_dir}" || return 1
 	_env "${git_dir}" | tee "${git_env}" || return 1
 	echo "export GIMME_ENV=\"$(_env_alias "${git_dir}" "${git_env}")\""
 }
