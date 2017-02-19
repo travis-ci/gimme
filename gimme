@@ -173,7 +173,7 @@ _extract() {
 
 # _setup_bootstrap
 _setup_bootstrap() {
-	local versions=("1.7" "1.6" "1.5" "1.4")
+	local versions=("1.8" "1.7" "1.6" "1.5" "1.4")
 
 	# try existing
 	for v in "${versions[@]}"; do
