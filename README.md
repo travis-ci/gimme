@@ -59,6 +59,18 @@ Or run without installing gimme:
 eval "$(curl -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme | GIMME_GO_VERSION=1.4 bash)"
 ```
 
+To install and use the current stable release of Go:
+
+``` bash
+eval "$(GIMME_GO_VERSION=stable gimme)"
+```
+
+Or to install and use the development version (master branch) of Go:
+
+``` bash
+eval "$(GIMME_GO_VERSION=tip gimme)"
+```
+
 To list installed versions of Go:
 
 ``` bash
