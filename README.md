@@ -62,13 +62,13 @@ eval "$(curl -sL https://raw.githubusercontent.com/travis-ci/gimme/master/gimme 
 To install and use the current stable release of Go:
 
 ``` bash
-eval "$(GIMME_GO_VERSION=stable gimme)"
+gimme stable
 ```
 
 Or to install and use the development version (master branch) of Go:
 
 ``` bash
-eval "$(GIMME_GO_VERSION=tip gimme)"
+gimme tip
 ```
 
 To list installed versions of Go:
