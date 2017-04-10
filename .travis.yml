@@ -12,15 +12,15 @@ env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_BOOTSTRAP_VERSION=1.7.4
+  - GO_BOOTSTRAP_VERSION=1.7.5
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
   - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.4.tar.bz2"
   - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.0.0/shfmt_v1.0.0_linux_amd64"
   matrix:
-  - TARGET=native GO_VERSIONS="$(< .testdata/sample-binary-$UNAME) $(< .testdata/source-$UNAME)"
+  - TARGET=native GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
-  - TARGET=arm64 GO_VERSIONS="$(< .testdata/sample-binary-$UNAME) master"
+  - TARGET=arm64 GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
 addons:
   apt:
     packages:

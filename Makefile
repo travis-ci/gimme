@@ -21,6 +21,8 @@ ifeq ($(UNAME), Darwin)
 	UNIQ := guniq
 endif
 
+SED_STRIP_COMMENTS ?= $(SED) -n -e '/^[^\#]/p'
+
 KNOWN_BINARY_VERSIONS_FILES := \
 	.testdata/binary-darwin \
 	.testdata/binary-linux \
@@ -48,12 +50,21 @@ update-copyright:
 	$(SED) -i "s/^GIMME_COPYRIGHT=.*/GIMME_COPYRIGHT=\"$(COPYRIGHT)\"/" gimme
 	$(SED) -i "s,^GIMME_LICENSE_URL=.*,GIMME_LICENSE_URL=\"$(LICENSE_URL)\"," gimme
 
+.PHONY: force-update-versions
+force-update-versions:
+	$(TOUCH) .testdata/object-urls
+
+.PHONY: update-binary-versions
+update-binary-versions: force-update-versions $(KNOWN_BINARY_VERSIONS_FILES)
+
 .testdata/binary-%: .testdata/object-urls
+	$(RM) $@
+	$(CAT) .testdata/stubheader-all > $@
 	$(CAT) $< | \
 		$(GREP) -E "$(lastword $(subst -, ,$@)).*tar\.gz$$" | \
 		$(AWK) -F/ '{ print $$9 }' | \
 		$(SED) "s/\.$(lastword $(subst -, ,$@)).*//;s/^go//" | \
-		$(SORT) -r | $(UNIQ) > $@
+		$(SORT) -r | $(UNIQ) >> $@
 
 .testdata/object-urls:
 	$(CURL) -s https://www.googleapis.com/storage/v1/b/golang/o | \
@@ -61,7 +72,7 @@ update-copyright:
 
 .testdata/sample-binary-%: .testdata/binary-%
 	$(RM) $@
-	$(TOUCH) $@
-	for prefix in $$($(GREP) -E '\.[0-9]\.' $< | $(CUT) -b1-3 | $(SORT) -r | $(UNIQ)) ; do \
+	$(CAT) .testdata/stubheader-sample > $@
+	for prefix in $$($(SED_STRIP_COMMENTS) $< | $(GREP) -E '\.[0-9]\.' | $(CUT) -b1-3 | $(SORT) -r | $(UNIQ)) ; do \
 		$(GREP) "^$${prefix}" $< | $(GREP) -vE 'rc|beta' | $(SORT) -r | $(HEAD) -1 >> $@ ; \
 	done
