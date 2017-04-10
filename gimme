@@ -244,6 +244,11 @@ _env() {
 
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
+	#
+	# Issue 87 leads to:
+	#   No, we should _always_ set GOROOT when using official release binaries, and sanest to just always set it.
+	#   The "avoid setting it" is _only_ for people using official releases in official locations.
+	#   Tools like `gimme` are the reason that GOROOT-in-env exists.
 
 	echo
 	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" ]]; then
@@ -256,12 +261,9 @@ _env() {
 	else
 		echo 'export GOARCH="'"${GIMME_ARCH}"'";'
 	fi
-	if ! _can_compile "${1}" >/dev/null 2>&1; then
-		# if the compile test fails without GOROOT, then we probably need GOROOT
-		echo 'export GOROOT="'"${1}"'";'
-	else
-		echo 'unset GOROOT;'
-	fi
+
+	echo "export GOROOT='${1}';"
+
 	# shellcheck disable=SC2016
 	echo 'export PATH="'"${1}/bin"':${PATH}";'
 	if [[ -z "${GIMME_SILENT_ENV}" ]]; then
@@ -309,6 +311,14 @@ _try_existing() {
 		# and should gain them, to make it easier for people using eval without
 		# double-quoting the command substition.
 		sed -e 's/\([^;]\)$/\1;/' <"${existing_env}"
+		# gimme is the corner-case where GOROOT _should_ be overriden, since if the
+		# ancilliary tooling's system-internal DefaultGoroot exists, and GOROOT is
+		# unset, then it will be used and the wrong golang will be picked up.
+		# Lots of old installs won't have GOROOT; munge it from $PATH
+		if grep -qs '^unset GOROOT' -- "${existing_env}"; then
+			sed -n -e 's/^export PATH="\(.*\)\/bin:.*$/export GOROOT='"'"'\1'"'"';/p' <"${existing_env}"
+			echo
+		fi
 		return
 	fi
 
