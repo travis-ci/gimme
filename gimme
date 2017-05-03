@@ -419,6 +419,8 @@ _update_stable() {
 	local url="https://www.googleapis.com/storage/v1/b/golang/o?fields=items%2Fname&maxResults=999999"
 	local vers=""
 
+	mkdir -p "$(dirname "${stable}")"
+
 	_do_curl "${url}" "${tmp_versions}"
 
 	while read -r line; do
