@@ -50,9 +50,13 @@ update-copyright:
 	$(SED) -i "s/^GIMME_COPYRIGHT=.*/GIMME_COPYRIGHT=\"$(COPYRIGHT)\"/" gimme
 	$(SED) -i "s,^GIMME_LICENSE_URL=.*,GIMME_LICENSE_URL=\"$(LICENSE_URL)\"," gimme
 
+.PHONY: remove-object-urls
+remove-object-urls:
+	$(RM) .testdata/object-urls
+
 .PHONY: force-update-versions
-force-update-versions:
-	$(TOUCH) .testdata/object-urls
+force-update-versions: remove-object-urls .testdata/object-urls
+	@true
 
 .PHONY: update-binary-versions
 update-binary-versions: force-update-versions $(KNOWN_BINARY_VERSIONS_FILES)
