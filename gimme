@@ -492,10 +492,17 @@ _versint() {
 	printf '1%03d%03d%03d%03d' "${args[@]}"
 }
 
+_to_goarch() {
+	case "${1}" in
+		aarch64) echo "arm64" ;;
+		*) echo "${1}" ;;
+	esac
+}
+
 : "${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}"
 : "${GIMME_HOSTOS:=$(uname -s | tr '[:upper:]' '[:lower:]')}"
-: "${GIMME_ARCH:=$(uname -m)}"
-: "${GIMME_HOSTARCH:=$(uname -m)}"
+: "${GIMME_ARCH:=$(_to_goarch "$(uname -m)")}"
+: "${GIMME_HOSTARCH:=$(_to_goarch "$(uname -m)")}"
 : "${GIMME_ENV_PREFIX:=${HOME}/.gimme/envs}"
 : "${GIMME_VERSION_PREFIX:=${HOME}/.gimme/versions}"
 : "${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}"
