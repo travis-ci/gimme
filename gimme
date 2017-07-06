@@ -395,6 +395,23 @@ _list_versions() {
 	done
 }
 
+_list_known() {
+	local exp="go([[:alnum:]\.]*)\.src.*" # :alnum: catches beta versions too
+	local list="${GIMME_TMP}/known-versions"
+	local known=""
+
+	_do_curl "${GIMME_LIST_KNOWN}" "${list}"
+
+	while read -r line; do
+		if [[ "${line}" =~ ${exp} ]]; then
+			known="$known\n${BASH_REMATCH[1]}"
+		fi
+	done <"${list}"
+
+	rm -f "${list}" &>/dev/null
+	echo -e "${known}" |sort -n -r |uniq
+}
+
 _realpath() {
 	# shellcheck disable=SC2005
 	[ -d "$1" ] && echo "$(cd "$1" && pwd)" || echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
@@ -510,6 +527,7 @@ _to_goarch() {
 : "${GIMME_TYPE:=auto}" # 'auto', 'binary', 'source', or 'git'
 : "${GIMME_BINARY_OSX:=osx10.8}"
 : "${GIMME_DOWNLOAD_BASE:=https://storage.googleapis.com/golang}"
+: "${GIMME_LIST_KNOWN:=https://golang.org/dl}"
 
 # The version prefix must be an absolute path
 case "${GIMME_VERSION_PREFIX}" in
@@ -553,6 +571,10 @@ while [[ $# -gt 0 ]]; do
 			;;
 		-l | --list | list)
 			_list_versions
+			exit 0
+			;;
+		-k | --known | known)
+			_list_known
 			exit 0
 			;;
 		-f | --force | force)
