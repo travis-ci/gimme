@@ -17,6 +17,7 @@
 #+    -V --version version - show the version only and exit
 #+        -f --force force - remove the existing go installation if present prior to install
 #+          -l --list list - list installed go versions and exit
+#+        -k --known known - list known go versions and exit
 #+  -
 #+  Influential env vars:
 #+  -
@@ -37,6 +38,7 @@
 #+       GIMME_CGO_ENABLED - enable build of cgo support
 #+     GIMME_CC_FOR_TARGET - cross compiler for cgo support
 #+     GIMME_DOWNLOAD_BASE - override base URL dir for download (default '${GIMME_DOWNLOAD_BASE}')
+#+        GIMME_LIST_KNOWN - override base URL for known go versions (default '${GIMME_LIST_KNOWN}')
 #+  -
 #
 set -e
