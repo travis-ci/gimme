@@ -400,7 +400,9 @@ _list_versions() {
 _list_known() {
 	local exp="go([[:alnum:]\.]*)\.src.*" # :alnum: catches beta versions too
 	local list="${GIMME_TMP}/known-versions"
-	local known=""
+
+	local known
+	known="$(_list_versions 2>/dev/null)"
 
 	_do_curl "${GIMME_LIST_KNOWN}" "${list}"
 
