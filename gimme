@@ -411,7 +411,7 @@ _list_known() {
 	done <"${list}"
 
 	rm -f "${list}" &>/dev/null
-	echo -e "${known}" |sort -n -r |uniq
+	echo -e "${known}" | sort -n -r | uniq
 }
 
 _realpath() {
