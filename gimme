@@ -49,9 +49,9 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION="v1.1.0"
+GIMME_VERSION="v1.2.0"
 GIMME_COPYRIGHT="Copyright (c) 2016 Dan Buch, Tianon Gravi, Travis CI GmbH"
-GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.1.0/LICENSE"
+GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.2.0/LICENSE"
 export GIMME_VERSION
 export GIMME_COPYRIGHT
 export GIMME_LICENSE_URL
@@ -101,7 +101,7 @@ _binary() {
 	urls=(
 		"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}.tar.gz"
 	)
-	if [[ "${GIMME_OS}" = 'darwin' && "${GIMME_BINARY_OSX}" ]]; then
+	if [[ "${GIMME_OS}" == 'darwin' && "${GIMME_BINARY_OSX}" ]]; then
 		urls=(
 			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}-${GIMME_BINARY_OSX}.tar.gz"
 			"${urls[@]}"
@@ -155,8 +155,8 @@ _checkout() {
 		git reset -q --hard "origin/${1}" \
 			|| git reset -q --hard "origin/go${1}" \
 			|| { [ "${1}" = 'tip' ] && git reset -q --hard origin/master; } \
-				|| git reset -q --hard "refs/tags/${1}" \
-				|| git reset -q --hard "refs/tags/go${1}"
+			|| git reset -q --hard "refs/tags/${1}" \
+			|| git reset -q --hard "refs/tags/go${1}"
 	} 2>/dev/null)
 }
 
@@ -253,12 +253,12 @@ _env() {
 	#   Tools like `gimme` are the reason that GOROOT-in-env exists.
 
 	echo
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" ]]; then
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" ]]; then
 		echo 'unset GOOS;'
 	else
 		echo 'export GOOS="'"${GIMME_OS}"'";'
 	fi
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]]; then
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
 		echo 'unset GOARCH;'
 	else
 		echo 'export GOARCH="'"${GIMME_ARCH}"'";'
@@ -281,7 +281,7 @@ _env_alias() {
 		return
 	fi
 
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" && "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]]; then
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" && "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
 		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.env"
 		cp "${2}" "${dest}"
 		ln -sf "${dest}" "${GIMME_ENV_PREFIX}/latest.env"
@@ -390,7 +390,7 @@ _list_versions() {
 		local cleaned="${d##*/go}"
 		cleaned="${cleaned%%.${GIMME_OS}.*}"
 		echo -en "${cleaned}"
-		if [[ "${cleaned}" = "${current_version}" ]]; then
+		if [[ "${cleaned}" == "${current_version}" ]]; then
 			echo -en ' <= current' >&2
 		fi
 		echo
@@ -423,8 +423,12 @@ _realpath() {
 
 _get_curr_stable() {
 	local stable="${GIMME_VERSION_PREFIX}/stable"
+	local now_secs
+	now_secs="$(date +%s)"
+	local stable_age
+	stable_age="$(_stat_unix "${stable}" 2>/dev/null || echo 0)"
 	local age
-	age=$(($(date +%s) - $(_stat_unix "${stable}" 2>/dev/null || echo 0)))
+	age=$((now_secs - stable_age))
 
 	if [[ "${age}" -gt 86400 ]]; then
 		_update_stable "${stable}"
@@ -610,7 +614,7 @@ case "${GIMME_ARCH}" in
 			echo >&2 "try go1.5 or newer"
 			exit 1
 		fi
-		if [[ "${GIMME_HOSTOS}" = "linux" && "${GIMME_HOSTARCH}" != "${GIMME_ARCH}" ]]; then
+		if [[ "${GIMME_HOSTOS}" == "linux" && "${GIMME_HOSTARCH}" != "${GIMME_ARCH}" ]]; then
 			: "${GIMME_CC_FOR_TARGET:="aarch64-linux-gnu-gcc"}"
 		fi
 		;;

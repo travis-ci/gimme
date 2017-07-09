@@ -2,6 +2,29 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
+## [1.2.0] - 2017-07-09
+
+### Added
+- support for `stable` alias which auto-updates to point at latest release
+- flag/command `-k|--known|known` to list known go versions
+
+### Fixed
+- always set `GOROOT` when installing official binaries
+
 ## [1.1.0] - 2016-12-07
 ### Added
 - Windows binary downloads
@@ -80,7 +103,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release!
 
-[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/travis-ci/gimme/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/travis-ci/gimme/compare/v1.0.4...v1.1.0
 [1.0.0]: https://github.com/travis-ci/gimme/compare/v0.2.4...v1.0.0
 [0.2.4]: https://github.com/travis-ci/gimme/compare/v0.2.3...v0.2.4

@@ -15,8 +15,8 @@ env:
   - GO_BOOTSTRAP_VERSION=1.7.5
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
-  - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.4.tar.bz2"
-  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.0.0/shfmt_v1.0.0_linux_amd64"
+  - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.6.tar.bz2"
+  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.3.1/shfmt_v1.3.1_linux_amd64"
   matrix:
   - TARGET=native GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
@@ -34,9 +34,10 @@ script:
     curl -sSL "${SHELLCHECK_URL}" | tar -C "${HOME}/bin" -xjf -;
     shellcheck --version;
   fi
-- if ! command -v shfmt ; then
-    curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt" ;
-    chmod +x "${HOME}/bin/shfmt" ;
+- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v1.3.1 ]] ; then
+    curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt";
+    chmod +x "${HOME}/bin/shfmt";
+    shfmt -version;
   fi
 - if [ $UNAME = linux ]; then make lint; fi
 - git diff --exit-code
