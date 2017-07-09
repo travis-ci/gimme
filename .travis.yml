@@ -34,9 +34,10 @@ script:
     curl -sSL "${SHELLCHECK_URL}" | tar -C "${HOME}/bin" -xjf -;
     shellcheck --version;
   fi
-- if ! command -v shfmt ; then
-    curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt" ;
-    chmod +x "${HOME}/bin/shfmt" ;
+- if [ $UNAME = linux ] && ! shfmt -version 2>/dev/null ; then
+    curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt";
+    chmod +x "${HOME}/bin/shfmt";
+    shfmt -version;
   fi
 - if [ $UNAME = linux ]; then make lint; fi
 - git diff --exit-code
