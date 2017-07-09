@@ -16,7 +16,7 @@ env:
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
   - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.6.tar.bz2"
-  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.0.0/shfmt_v1.3.1_linux_amd64"
+  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.3.1/shfmt_v1.3.1_linux_amd64"
   matrix:
   - TARGET=native GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
