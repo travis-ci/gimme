@@ -6,7 +6,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+- Code of Conduct
+
 ### Changed
+
+- `1.8` and `1.9` are now build-from-source bootstrapping candidates
 
 ### Deprecated
 
