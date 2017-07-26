@@ -68,7 +68,7 @@ gimme stable
 Or to install and use the development version (master branch) of Go:
 
 ``` bash
-gimme tip
+gimme master
 ```
 
 To list installed versions of Go:
