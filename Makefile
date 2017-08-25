@@ -71,8 +71,7 @@ update-binary-versions: force-update-versions $(KNOWN_BINARY_VERSIONS_FILES)
 		$(SORT) -r | $(UNIQ) >> $@
 
 .testdata/object-urls:
-	$(CURL) -s https://www.googleapis.com/storage/v1/b/golang/o | \
-		$(JQ) -r '.items | .[] | .selfLink' > $@
+	./fetch-object-urls >$@
 
 .testdata/sample-binary-%: .testdata/binary-%
 	$(RM) $@

@@ -1,0 +1,48 @@
+#!/usr/bin/env python3
+
+import json
+import sys
+
+from urllib.request import urlopen
+from urllib.parse import quote as urlquote
+
+DEFAULT_BASE_URL = 'https://www.googleapis.com/storage/v1/b/golang/o'
+
+
+def main():
+    for self_link in _fetch_links():
+        print(self_link)
+    return 0
+
+
+def _fetch_links(base_url=DEFAULT_BASE_URL, max_fetch=5):
+    n_fetch = 1
+    first_page = _fetch_page(base_url=base_url)
+    for self_link in _page_self_links(first_page):
+        yield self_link
+
+    tok = str(first_page.get('nextPageToken', '')).strip()
+    while tok != '' and n_fetch < max_fetch:
+        page = _fetch_page(next_page_token=tok)
+        tok = str(page.get('nextPageToken', '')).strip()
+        for self_link in _page_self_links(page):
+            yield self_link
+        n_fetch += 1
+
+
+def _fetch_page(next_page_token='', base_url=DEFAULT_BASE_URL):
+    url = base_url
+    if next_page_token.strip() != '':
+        url = '{}?pageToken={}'.format(url, urlquote(next_page_token))
+    return json.load(urlopen(url))
+
+
+def _page_self_links(page):
+    for item in page.get('items', []):
+        self_link = item.get('selfLink')
+        if self_link is not None:
+            yield self_link
+
+
+if __name__ == '__main__':
+    sys.exit(main())
