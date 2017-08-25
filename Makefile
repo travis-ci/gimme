@@ -76,6 +76,6 @@ update-binary-versions: force-update-versions $(KNOWN_BINARY_VERSIONS_FILES)
 .testdata/sample-binary-%: .testdata/binary-%
 	$(RM) $@
 	$(CAT) .testdata/stubheader-sample > $@
-	for prefix in $$($(SED_STRIP_COMMENTS) $< | $(GREP) -E '\.[0-9]\.' | $(CUT) -b1-3 | $(SORT) -r | $(UNIQ)) ; do \
+	for prefix in $$($(SED_STRIP_COMMENTS) $< | $(GREP) -E '\.[0-9]\.|\.9' | $(CUT) -b1-3 | $(SORT) -r | $(UNIQ)) ; do \
 		$(GREP) "^$${prefix}" $< | $(GREP) -vE 'rc|beta' | $(SORT) -r | $(HEAD) -1 >> $@ ; \
 	done
