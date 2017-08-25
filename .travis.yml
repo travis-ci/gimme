@@ -12,7 +12,7 @@ env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_BOOTSTRAP_VERSION=1.7.5
+  - GO_BOOTSTRAP_VERSION=1.8.3
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
   - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.6.tar.bz2"
