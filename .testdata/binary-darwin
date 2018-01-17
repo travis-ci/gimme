@@ -1,4 +1,30 @@
+# This file is auto-generated, by asking the Golang release fileservers what
+# versions exist.  It contains all versions, but is not currently directly used.
+#
+# Instead, sample-* files are built _from_ these files and the samples are used
+# for runtest invocation.
+
+#
+1.9rc2
+1.9rc1
+1.9beta2
+1.9beta1
+1.9.2rc2
+1.9.2
+1.9.1
+1.9
+1.8rc3
+1.8rc2
+1.8rc1
+1.8beta2
 1.8beta1
+1.8.5rc4
+1.8.5
+1.8.4
+1.8.3
+1.8.2
+1.8.1
+1.8
 1.7rc6
 1.7rc5
 1.7rc4
@@ -7,6 +33,8 @@
 1.7rc1
 1.7beta2
 1.7beta1
+1.7.6
+1.7.5
 1.7.4
 1.7.3
 1.7.2
