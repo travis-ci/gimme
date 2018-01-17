@@ -17,6 +17,7 @@
 #+    -V --version version - show the version only and exit
 #+        -f --force force - remove the existing go installation if present prior to install
 #+          -l --list list - list installed go versions and exit
+#+        -k --known known - list known go versions and exit
 #+  -
 #+  Influential env vars:
 #+  -
@@ -37,6 +38,7 @@
 #+       GIMME_CGO_ENABLED - enable build of cgo support
 #+     GIMME_CC_FOR_TARGET - cross compiler for cgo support
 #+     GIMME_DOWNLOAD_BASE - override base URL dir for download (default '${GIMME_DOWNLOAD_BASE}')
+#+        GIMME_LIST_KNOWN - override base URL for known go versions (default '${GIMME_LIST_KNOWN}')
 #+  -
 #
 set -e
@@ -47,9 +49,9 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION="v1.1.0"
+GIMME_VERSION="v1.2.0"
 GIMME_COPYRIGHT="Copyright (c) 2016 Dan Buch, Tianon Gravi, Travis CI GmbH"
-GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.1.0/LICENSE"
+GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.2.0/LICENSE"
 export GIMME_VERSION
 export GIMME_COPYRIGHT
 export GIMME_LICENSE_URL
@@ -115,7 +117,7 @@ _binary() {
 	urls=(
 		"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}.tar.gz"
 	)
-	if [[ "${GIMME_OS}" = 'darwin' && "${GIMME_BINARY_OSX}" ]]; then
+	if [[ "${GIMME_OS}" == 'darwin' && "${GIMME_BINARY_OSX}" ]]; then
 		urls=(
 			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}-${GIMME_BINARY_OSX}.tar.gz"
 			"${urls[@]}"
@@ -169,8 +171,8 @@ _checkout() {
 		git reset -q --hard "origin/${1}" \
 			|| git reset -q --hard "origin/go${1}" \
 			|| { [ "${1}" = 'tip' ] && git reset -q --hard origin/master; } \
-				|| git reset -q --hard "refs/tags/${1}" \
-				|| git reset -q --hard "refs/tags/go${1}"
+			|| git reset -q --hard "refs/tags/${1}" \
+			|| git reset -q --hard "refs/tags/go${1}"
 	} 2>/dev/null)
 }
 
@@ -189,7 +191,7 @@ _extract() {
 
 # _setup_bootstrap
 _setup_bootstrap() {
-	local versions=("1.7" "1.6" "1.5" "1.4")
+	local versions=("1.9" "1.8" "1.7" "1.6" "1.5" "1.4")
 
 	# try existing
 	for v in "${versions[@]}"; do
@@ -260,24 +262,26 @@ _env() {
 
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
+	#
+	# Issue 87 leads to:
+	#   No, we should _always_ set GOROOT when using official release binaries, and sanest to just always set it.
+	#   The "avoid setting it" is _only_ for people using official releases in official locations.
+	#   Tools like `gimme` are the reason that GOROOT-in-env exists.
 
 	echo
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" ]]; then
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" ]]; then
 		echo 'unset GOOS;'
 	else
 		echo 'export GOOS="'"${GIMME_OS}"'";'
 	fi
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]]; then
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
 		echo 'unset GOARCH;'
 	else
 		echo 'export GOARCH="'"${GIMME_ARCH}"'";'
 	fi
-	if ! _can_compile "${1}" >/dev/null 2>&1; then
-		# if the compile test fails without GOROOT, then we probably need GOROOT
-		echo 'export GOROOT="'"${1}"'";'
-	else
-		echo 'unset GOROOT;'
-	fi
+
+	echo "export GOROOT='${1}';"
+
 	# shellcheck disable=SC2016
 	echo 'export PATH="'"${1}/bin"':${PATH}";'
 	if [[ -z "${GIMME_SILENT_ENV}" ]]; then
@@ -293,7 +297,7 @@ _env_alias() {
 		return
 	fi
 
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" = "${GIMME_OS}" && "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" = "${GIMME_ARCH}" ]]; then
+	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" && "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
 		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.env"
 		cp "${2}" "${dest}"
 		ln -sf "${dest}" "${GIMME_ENV_PREFIX}/latest.env"
@@ -325,6 +329,14 @@ _try_existing() {
 		# and should gain them, to make it easier for people using eval without
 		# double-quoting the command substition.
 		sed -e 's/\([^;]\)$/\1;/' <"${existing_env}"
+		# gimme is the corner-case where GOROOT _should_ be overriden, since if the
+		# ancilliary tooling's system-internal DefaultGoroot exists, and GOROOT is
+		# unset, then it will be used and the wrong golang will be picked up.
+		# Lots of old installs won't have GOROOT; munge it from $PATH
+		if grep -qs '^unset GOROOT' -- "${existing_env}"; then
+			sed -n -e 's/^export PATH="\(.*\)\/bin:.*$/export GOROOT='"'"'\1'"'"';/p' <"${existing_env}"
+			echo
+		fi
 		return
 	fi
 
@@ -394,11 +406,30 @@ _list_versions() {
 		local cleaned="${d##*/go}"
 		cleaned="${cleaned%%.${GIMME_OS}.*}"
 		echo -en "${cleaned}"
-		if [[ "${cleaned}" = "${current_version}" ]]; then
+		if [[ "${cleaned}" == "${current_version}" ]]; then
 			echo -en ' <= current' >&2
 		fi
 		echo
 	done
+}
+
+_list_known() {
+	local exp="go([[:alnum:]\.]*)\.src.*" # :alnum: catches beta versions too
+	local list="${GIMME_TMP}/known-versions"
+
+	local known
+	known="$(_list_versions 2>/dev/null)"
+
+	_do_curl "${GIMME_LIST_KNOWN}" "${list}"
+
+	while read -r line; do
+		if [[ "${line}" =~ ${exp} ]]; then
+			known="$known\n${BASH_REMATCH[1]}"
+		fi
+	done <"${list}"
+
+	rm -f "${list}" &>/dev/null
+	echo -e "${known}" | grep . | sort -n -r | uniq
 }
 
 _realpath() {
@@ -408,8 +439,12 @@ _realpath() {
 
 _get_curr_stable() {
 	local stable="${GIMME_VERSION_PREFIX}/stable"
+	local now_secs
+	now_secs="$(date +%s)"
+	local stable_age
+	stable_age="$(_stat_unix "${stable}" 2>/dev/null || echo 0)"
 	local age
-	age=$(($(date +%s) - $(_stat_unix "${stable}" 2>/dev/null || echo 0)))
+	age=$((now_secs - stable_age))
 
 	if [[ "${age}" -gt 86400 ]]; then
 		_update_stable "${stable}"
@@ -420,18 +455,20 @@ _get_curr_stable() {
 
 _update_stable() {
 	local stable="${1}"
-	local exp="go([[:digit:]\.]*)\.src.*"
 	local tmp_versions="${GIMME_TMP}/versions"
-	local url="https://www.googleapis.com/storage/v1/b/golang/o?fields=items%2Fname&maxResults=999999"
+	local url="https://www.googleapis.com/storage/v1/b/golang/o?fields=items%2Fname,nextPageToken"
 	local vers=""
+	local nextPageToken
+
+	mkdir -p "$(dirname "${stable}")"
 
 	_do_curl "${url}" "${tmp_versions}"
+	vers="$(jq -r '.items[].name | capture("go(?<ver>[[:digit:]\\.]*)\\.src.*").ver' <"$tmp_versions")"
 
-	while read -r line; do
-		if [[ "${line}" =~ ${exp} ]]; then
-			vers="$vers\n${BASH_REMATCH[1]}"
-		fi
-	done <"${tmp_versions}"
+	while nextPageToken=$(jq --exit-status --raw-output '.nextPageToken' <"$tmp_versions"); do
+		_do_curl "${url}&pageToken=${nextPageToken}" "${tmp_versions}"
+		vers="${vers}\n$(jq -r '.items[].name | capture("go(?<ver>[[:digit:]\\.]*)\\.src.*").ver' <"$tmp_versions")"
+	done
 
 	rm -f "${tmp_versions}" &>/dev/null
 	echo -e "${vers}" | sort -n -r | head -n1 >"${stable}"
@@ -496,10 +533,17 @@ _versint() {
 	printf '1%03d%03d%03d%03d' "${args[@]}"
 }
 
+_to_goarch() {
+	case "${1}" in
+		aarch64) echo "arm64" ;;
+		*) echo "${1}" ;;
+	esac
+}
+
 : "${GIMME_OS:=$(uname -s | tr '[:upper:]' '[:lower:]')}"
 : "${GIMME_HOSTOS:=$(uname -s | tr '[:upper:]' '[:lower:]')}"
-: "${GIMME_ARCH:=$(uname -m)}"
-: "${GIMME_HOSTARCH:=$(uname -m)}"
+: "${GIMME_ARCH:=$(_to_goarch "$(uname -m)")}"
+: "${GIMME_HOSTARCH:=$(_to_goarch "$(uname -m)")}"
 : "${GIMME_ENV_PREFIX:=${HOME}/.gimme/envs}"
 : "${GIMME_VERSION_PREFIX:=${HOME}/.gimme/versions}"
 : "${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}"
@@ -507,6 +551,7 @@ _versint() {
 : "${GIMME_TYPE:=auto}" # 'auto', 'binary', 'source', or 'git'
 : "${GIMME_BINARY_OSX:=osx10.8}"
 : "${GIMME_DOWNLOAD_BASE:=https://storage.googleapis.com/golang}"
+: "${GIMME_LIST_KNOWN:=https://golang.org/dl}"
 
 # The version prefix must be an absolute path
 case "${GIMME_VERSION_PREFIX}" in
@@ -552,6 +597,10 @@ while [[ $# -gt 0 ]]; do
 			_list_versions
 			exit 0
 			;;
+		-k | --known | known)
+			_list_known
+			exit 0
+			;;
 		-f | --force | force)
 			force=1
 			;;
@@ -581,7 +630,7 @@ case "${GIMME_ARCH}" in
 			echo >&2 "try go1.5 or newer"
 			exit 1
 		fi
-		if [[ "${GIMME_HOSTOS}" = "linux" && "${GIMME_HOSTARCH}" != "${GIMME_ARCH}" ]]; then
+		if [[ "${GIMME_HOSTOS}" == "linux" && "${GIMME_HOSTARCH}" != "${GIMME_ARCH}" ]]; then
 			: "${GIMME_CC_FOR_TARGET:="aarch64-linux-gnu-gcc"}"
 		fi
 		;;
