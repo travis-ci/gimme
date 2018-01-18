@@ -32,9 +32,9 @@ addons:
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
-  - if [ $UNAME = linux ] && [[ $(shellcheck --version | awk '/^version:/ { print $2 }') != 0.4.7 ]] ; then
+- if [ $UNAME = linux ] && [[ $(shellcheck --version | awk '/^version:/ { print $2 }') != 0.4.7 ]] ; then
     curl -sSL -o "${GIMME_TMP}/shellcheck.tar.xz" "${SHELLCHECK_URL}";
-    tar -C "${HOME}/bin" --exclude='*.txt' --strip-components=1 -xf "${GIMME_TMP}/shellcheck.tar.xz";
+    tar -C "${HOME}/bin" --exclude="*.txt" --strip-components=1 -xf "${GIMME_TMP}/shellcheck.tar.xz";
     shellcheck --version;
   fi
 - if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v2.2.0 ]] ; then
