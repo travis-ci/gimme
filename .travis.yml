@@ -3,11 +3,13 @@ sudo: false
 dist: trusty
 os:
 - linux
-- osx
+# Disabling, potentially permanently, given ongoing sadness :crying_cat_face:
+# - osx
 cache:
   directories:
   - "${HOME}/bin"
-osx_image: xcode7.3
+# Disabling, potentially permanently, given ongoing sadness :crying_cat_face:
+# osx_image: xcode7.3
 env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
@@ -15,8 +17,8 @@ env:
   - GO_BOOTSTRAP_VERSION=1.8.3
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
-  - SHELLCHECK_URL="https://s3.amazonaws.com/travis-blue-public/binaries/ubuntu/14.04/x86_64/shellcheck-0.4.6.tar.bz2"
-  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v1.3.1/shfmt_v1.3.1_linux_amd64"
+  - SHELLCHECK_URL="https://www.googleapis.com/download/storage/v1/b/shellcheck/o/shellcheck-v0.4.7.linux.x86_64.tar.xz?alt=media"
+  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_amd64"
   matrix:
   - TARGET=native GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
@@ -30,11 +32,12 @@ addons:
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
-- if [ $UNAME = linux ] && ! shellcheck --version; then
-    curl -sSL "${SHELLCHECK_URL}" | tar -C "${HOME}/bin" -xjf -;
+  - if [ $UNAME = linux ] && [[ $(shellcheck --version | awk '/^version:/ { print $2 }') != 0.4.7 ]] ; then
+    curl -sSL -o "${GIMME_TMP}/shellcheck.tar.xz" "${SHELLCHECK_URL}";
+    tar -C "${HOME}/bin" --exclude='*.txt' --strip-components=1 -xf "${GIMME_TMP}/shellcheck.tar.xz";
     shellcheck --version;
   fi
-- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v1.3.1 ]] ; then
+- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v2.2.0 ]] ; then
     curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt";
     chmod +x "${HOME}/bin/shfmt";
     shfmt -version;

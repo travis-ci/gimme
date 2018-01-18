@@ -49,9 +49,9 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION="v1.2.0"
-GIMME_COPYRIGHT="Copyright (c) 2016 Dan Buch, Tianon Gravi, Travis CI GmbH"
-GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.2.0/LICENSE"
+GIMME_VERSION="v1.3.0"
+GIMME_COPYRIGHT="Copyright (c) 2018 Dan Buch, Tianon Gravi, Travis CI GmbH"
+GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.3.0/LICENSE"
 export GIMME_VERSION
 export GIMME_COPYRIGHT
 export GIMME_LICENSE_URL
@@ -152,11 +152,11 @@ _fetch() {
 _checkout() {
 	_fetch "${2}"
 	(cd "${2}" && {
-		git reset -q --hard "origin/${1}" \
-			|| git reset -q --hard "origin/go${1}" \
-			|| { [ "${1}" = 'tip' ] && git reset -q --hard origin/master; } \
-			|| git reset -q --hard "refs/tags/${1}" \
-			|| git reset -q --hard "refs/tags/go${1}"
+		git reset -q --hard "origin/${1}" ||
+			git reset -q --hard "origin/go${1}" ||
+			{ [ "${1}" = 'tip' ] && git reset -q --hard origin/master; } ||
+			git reset -q --hard "refs/tags/${1}" ||
+			git reset -q --hard "refs/tags/go${1}"
 	} 2>/dev/null)
 }
 
@@ -293,18 +293,18 @@ _env_alias() {
 
 _try_existing() {
 	case "${1}" in
-		binary)
-			local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
-			local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
-			;;
-		source)
-			local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
-			local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
-			;;
-		*)
-			_try_existing binary || _try_existing source
-			return $?
-			;;
+	binary)
+		local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}"
+		local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.${GIMME_OS}.${GIMME_ARCH}.env"
+		;;
+	source)
+		local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
+		local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
+		;;
+	*)
+		_try_existing binary || _try_existing source
+		return $?
+		;;
 	esac
 
 	if [[ -x "${existing_ver}/bin/go" && -s "${existing_env}" ]]; then
@@ -398,7 +398,7 @@ _list_versions() {
 }
 
 _list_known() {
-	local exp="go([[:alnum:]\.]*)\.src.*" # :alnum: catches beta versions too
+	local exp="go([[:alnum:]\\.]*)\\.src.*" # :alnum: catches beta versions too
 	local list="${GIMME_TMP}/known-versions"
 
 	local known
@@ -408,7 +408,7 @@ _list_known() {
 
 	while read -r line; do
 		if [[ "${line}" =~ ${exp} ]]; then
-			known="$known\n${BASH_REMATCH[1]}"
+			known="$known\\n${BASH_REMATCH[1]}"
 		fi
 	done <"${list}"
 
@@ -451,7 +451,7 @@ _update_stable() {
 
 	while nextPageToken=$(jq --exit-status --raw-output '.nextPageToken' <"$tmp_versions"); do
 		_do_curl "${url}&pageToken=${nextPageToken}" "${tmp_versions}"
-		vers="${vers}\n$(jq -r '.items[].name | capture("go(?<ver>[[:digit:]\\.]*)\\.src.*").ver' <"$tmp_versions")"
+		vers="${vers}\\n$(jq -r '.items[].name | capture("go(?<ver>[[:digit:]\\.]*)\\.src.*").ver' <"$tmp_versions")"
 	done
 
 	rm -f "${tmp_versions}" &>/dev/null
@@ -461,12 +461,12 @@ _update_stable() {
 _stat_unix() {
 	local filename="${1}"
 	case "${GIMME_HOSTOS}" in
-		darwin | *bsd)
-			stat -f %a "${filename}"
-			;;
-		linux)
-			stat -c %Y "${filename}"
-			;;
+	darwin | *bsd)
+		stat -f %a "${filename}"
+		;;
+	linux)
+		stat -c %Y "${filename}"
+		;;
 	esac
 }
 
@@ -503,24 +503,24 @@ _exclude_from_backups() {
 	# Please avoid anything which requires elevated privileges or is obnoxious
 	# enough to offend the invoker
 	case "${GIMME_HOSTOS}" in
-		darwin)
-			# Darwin: Time Machine is "standard", we can add others.  The default
-			# mechanism is sticky, as an attribute on the dir, requires no
-			# privileges, is idempotent (and doesn't support -- to end flags).
-			tmutil addexclusion "$@"
-			;;
+	darwin)
+		# Darwin: Time Machine is "standard", we can add others.  The default
+		# mechanism is sticky, as an attribute on the dir, requires no
+		# privileges, is idempotent (and doesn't support -- to end flags).
+		tmutil addexclusion "$@"
+		;;
 	esac
 }
 
 _versint() {
-	local args=(${1//[^0-9]/ })
+	IFS=" " read -r -a args <<<"${1//[^0-9]/ }"
 	printf '1%03d%03d%03d%03d' "${args[@]}"
 }
 
 _to_goarch() {
 	case "${1}" in
-		aarch64) echo "arm64" ;;
-		*) echo "${1}" ;;
+	aarch64) echo "arm64" ;;
+	*) echo "${1}" ;;
 	esac
 }
 
@@ -539,12 +539,12 @@ _to_goarch() {
 
 # The version prefix must be an absolute path
 case "${GIMME_VERSION_PREFIX}" in
-	/*) true ;;
-	*)
-		echo >&2 " Fixing GIMME_VERSION_PREFIX from relative: $GIMME_VERSION_PREFIX"
-		GIMME_VERSION_PREFIX="$(pwd)/${GIMME_VERSION_PREFIX}"
-		echo >&2 " to: $GIMME_VERSION_PREFIX"
-		;;
+/*) true ;;
+*)
+	echo >&2 " Fixing GIMME_VERSION_PREFIX from relative: $GIMME_VERSION_PREFIX"
+	GIMME_VERSION_PREFIX="$(pwd)/${GIMME_VERSION_PREFIX}"
+	echo >&2 " to: $GIMME_VERSION_PREFIX"
+	;;
 esac
 
 if [[ "${GIMME_OS}" == mingw* ]]; then
@@ -560,40 +560,40 @@ fi
 
 while [[ $# -gt 0 ]]; do
 	case "${1}" in
-		-h | --help | help | wat)
-			_old_ifs="$IFS"
-			IFS=';'
-			awk '/^#\+  / {
+	-h | --help | help | wat)
+		_old_ifs="$IFS"
+		IFS=';'
+		awk '/^#\+  / {
 				sub(/^#\+  /, "", $0) ;
 				sub(/-$/, "", $0) ;
 				print $0
 			}' "$0" | while read -r line; do
-				eval "echo \"$line\""
-			done
-			IFS="$_old_ifs"
-			exit 0
-			;;
-		-V | --version | version)
-			echo "${GIMME_VERSION}"
-			exit 0
-			;;
-		-l | --list | list)
-			_list_versions
-			exit 0
-			;;
-		-k | --known | known)
-			_list_known
-			exit 0
-			;;
-		-f | --force | force)
-			force=1
-			;;
-		-i | install)
-			true # ignore a dummy argument
-			;;
-		*)
-			break
-			;;
+			eval "echo \"$line\""
+		done
+		IFS="$_old_ifs"
+		exit 0
+		;;
+	-V | --version | version)
+		echo "${GIMME_VERSION}"
+		exit 0
+		;;
+	-l | --list | list)
+		_list_versions
+		exit 0
+		;;
+	-k | --known | known)
+		_list_known
+		exit 0
+		;;
+	-f | --force | force)
+		force=1
+		;;
+	-i | install)
+		true # ignore a dummy argument
+		;;
+	*)
+		break
+		;;
 	esac
 	shift
 done
@@ -606,26 +606,26 @@ if [[ -n "${2}" ]]; then
 fi
 
 case "${GIMME_ARCH}" in
-	x86_64) GIMME_ARCH=amd64 ;;
-	x86) GIMME_ARCH=386 ;;
-	arm64)
-		if [[ "${GIMME_GO_VERSION}" != master && "$(_versint "${GIMME_GO_VERSION}")" < "$(_versint 1.5)" ]]; then
-			echo >&2 "error: ${GIMME_ARCH} is not supported by this go version"
-			echo >&2 "try go1.5 or newer"
-			exit 1
-		fi
-		if [[ "${GIMME_HOSTOS}" == "linux" && "${GIMME_HOSTARCH}" != "${GIMME_ARCH}" ]]; then
-			: "${GIMME_CC_FOR_TARGET:="aarch64-linux-gnu-gcc"}"
-		fi
-		;;
-	arm*) GIMME_ARCH=arm ;;
+x86_64) GIMME_ARCH=amd64 ;;
+x86) GIMME_ARCH=386 ;;
+arm64)
+	if [[ "${GIMME_GO_VERSION}" != master && "$(_versint "${GIMME_GO_VERSION}")" < "$(_versint 1.5)" ]]; then
+		echo >&2 "error: ${GIMME_ARCH} is not supported by this go version"
+		echo >&2 "try go1.5 or newer"
+		exit 1
+	fi
+	if [[ "${GIMME_HOSTOS}" == "linux" && "${GIMME_HOSTARCH}" != "${GIMME_ARCH}" ]]; then
+		: "${GIMME_CC_FOR_TARGET:="aarch64-linux-gnu-gcc"}"
+	fi
+	;;
+arm*) GIMME_ARCH=arm ;;
 esac
 
 case "${GIMME_HOSTARCH}" in
-	x86_64) GIMME_HOSTARCH=amd64 ;;
-	x86) GIMME_HOSTARCH=386 ;;
-	arm64) ;;
-	arm*) GIMME_HOSTARCH=arm ;;
+x86_64) GIMME_HOSTARCH=amd64 ;;
+x86) GIMME_HOSTARCH=386 ;;
+arm64) ;;
+arm*) GIMME_HOSTARCH=arm ;;
 esac
 
 if [[ "${GIMME_GO_VERSION}" == "stable" ]]; then
@@ -665,7 +665,7 @@ if ! case "${GIMME_TYPE}" in
 		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
 		exit 1
 		;;
-esac; then
+	esac; then
 	echo >&2 "I don't have any idea what to do with '${GIMME_GO_VERSION}'."
 	echo >&2 "  (using type '${GIMME_TYPE}')"
 	exit 1
