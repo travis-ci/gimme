@@ -6,6 +6,8 @@ Install go, yay!
 
 ## Installation & usage
 
+Requires `jq` for JSON processing.  This is a common tool.
+
 Install from github:
 
 ``` bash
@@ -18,7 +20,7 @@ chmod +x ~/bin/gimme
 [Homebrew](http://brew.sh) (OS X):
 
 ```bash
-brew install gimme
+brew install jq gimme
 ```
 
 Then check the help text a la:
