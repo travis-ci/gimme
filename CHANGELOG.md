@@ -6,11 +6,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-- Code of Conduct
-
 ### Changed
-
-- `1.8` and `1.9` are now build-from-source bootstrapping candidates
 
 ### Deprecated
 
@@ -19,6 +15,20 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 ### Security
+
+## [1.3.0] - 2018-01-17
+
+### Added
+
+- Code of Conduct
+
+### Changed
+
+- `1.8` and `1.9` are now build-from-source bootstrapping candidates
+
+### Fixed
+- paginate bucket when fetching 'stable' alias
+- account for future 1.1x releases in version regex
 
 ## [1.2.0] - 2017-07-09
 
