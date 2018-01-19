@@ -50,7 +50,7 @@ set -o pipefail
 [[ ${GIMME_DEBUG} ]] && set -x
 
 GIMME_VERSION="v1.3.0"
-GIMME_COPYRIGHT="Copyright (c) 2015-2018 Dan Buch, Tianon Gravi, Travis CI GmbH"
+GIMME_COPYRIGHT="Copyright (c) 2015-2018 gimme contributors"
 GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.3.0/LICENSE"
 export GIMME_VERSION
 export GIMME_COPYRIGHT
