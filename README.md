@@ -23,6 +23,17 @@ chmod +x ~/bin/gimme
 brew install jq gimme
 ```
 
+[Arch AUR](https://aur.archlinux.org/) (Arch Linux), substituting `yaourt` with
+however you prefer to install from AUR:
+
+``` bash
+# latest released version
+yaourt -S gimme
+
+# current git HEAD revision
+yaourt -S gimme-git
+```
+
 Then check the help text a la:
 
 ``` bash
