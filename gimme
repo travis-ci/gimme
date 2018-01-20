@@ -81,8 +81,9 @@ _do_curl() {
 	exit 1
 }
 
+# _sha256sum "file"
 _sha256sum() {
-	if which sha256sum >/dev/null; then
+	if command -v sha256sum &>/dev/null; then
 		sha256sum "$@"
 	else
 		shasum -a 256 "$@"
@@ -100,8 +101,10 @@ _do_curls() {
 		if _do_curl "${url}" "${f}"; then
 			if _do_curl "${url}.sha256" "${f}.sha256"; then
 				echo "  ${f}" >>"${f}.sha256"
-				if ! _sha256sum -c "${f}.sha256" >/dev/null; then
-					exit 1
+				if ! _sha256sum -c "${f}.sha256" &>/dev/null; then
+					: sha256sum failed for "${f}"
+					: continuing to next candidate URL
+					continue
 				fi
 			fi
 			return
