@@ -1,12 +1,12 @@
+SHELL := bash
 UNAME := $(shell uname)
 VERSION := $(shell git describe --always --tags)
-COPYRIGHT := $(shell grep ^Copyright LICENSE)
-LICENSE_URL := https://raw.githubusercontent.com/travis-ci/gimme/$(shell git rev-parse --verify HEAD | cut -b1-7)/LICENSE
 
 AWK ?= awk
 CAT ?= cat
 CURL ?= curl
 CUT ?= cut
+DIFF ?= diff
 GIT ?= git
 HEAD ?= head
 GREP ?= grep
@@ -30,25 +30,25 @@ KNOWN_BINARY_VERSIONS_FILES := \
 	.testdata/sample-binary-linux
 
 .PHONY: all
-all: lint update-version update-copyright $(KNOWN_BINARY_VERSIONS_FILES)
+all: lint CONTRIBUTORS assert-copyright $(KNOWN_BINARY_VERSIONS_FILES)
 
 .PHONY: clean
 clean:
 	$(RM) $(KNOWN_BINARY_VERSIONS_FILES) .testdata/object-urls
+	$(RM) CONTRIBUTORS
 
 .PHONY: lint
 lint:
-	git grep -l '^#!/usr/bin/env bash' | xargs shellcheck
-	git grep -l '^#!/usr/bin/env bash' | xargs shfmt -i 0 -w
+	$(GIT) grep -l '^#!/usr/bin/env bash' | xargs shellcheck
+	$(GIT) grep -l '^#!/usr/bin/env bash' | xargs shfmt -i 0 -w
 
-.PHONY: update-version
-update-version:
-	$(SED) -i "s/^GIMME_VERSION=.*/GIMME_VERSION=\"$(VERSION)\"/" gimme
-
-.PHONY: update-copyright
-update-copyright:
-	$(SED) -i "s/^GIMME_COPYRIGHT=.*/GIMME_COPYRIGHT=\"$(COPYRIGHT)\"/" gimme
-	$(SED) -i "s,^GIMME_LICENSE_URL=.*,GIMME_LICENSE_URL=\"$(LICENSE_URL)\"," gimme
+.PHONY: assert-copyright
+assert-copyright:
+	@$(DIFF) -u \
+		--label a/copyright/gimme \
+		<($(AWK) 'BEGIN { FS="="; } /^GIMME_COPYRIGHT/ { gsub(/"/, "", $$2); print $$2 }' gimme) \
+		--label b/copyright/LICENSE \
+		<(awk '/^Copyright/ { print $$0 }' LICENSE)
 
 .PHONY: remove-object-urls
 remove-object-urls:
@@ -79,3 +79,7 @@ update-binary-versions: force-update-versions $(KNOWN_BINARY_VERSIONS_FILES)
 	for prefix in $$($(SED_STRIP_COMMENTS) $< | $(GREP) -E '\.[0-9]+(\.|$$)' | $(CUT) -b1-3 | $(SORT) -r | $(UNIQ)) ; do \
 		$(GREP) "^$${prefix}" $< | $(GREP) -vE 'rc|beta' | $(SORT) -r | $(HEAD) -1 >> $@ ; \
 	done
+
+CONTRIBUTORS:
+	@echo 'gimme was built by these wonderful humans:' >$@
+	@$(GIT) log --format=%an | $(SORT) | $(UNIQ) | $(SED) 's/^/- /' >>$@
