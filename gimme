@@ -81,13 +81,35 @@ _do_curl() {
 	exit 1
 }
 
+# _sha256sum "file"
+_sha256sum() {
+	if command -v sha256sum &>/dev/null; then
+		sha256sum "$@"
+	elif command -v gsha256sum &>/dev/null; then
+		gsha256sum "$@"
+	else
+		shasum -a 256 "$@"
+	fi
+}
+
 # _do_curls "file" "url" ["url"...]
 _do_curls() {
 	f="${1}"
 	shift
-	[[ ! -s "${f}" ]] || return 0
+	if _sha256sum -c "${f}.sha256" &>/dev/null; then
+		return 0
+	fi
 	for url in "${@}"; do
 		if _do_curl "${url}" "${f}"; then
+			if _do_curl "${url}.sha256" "${f}.sha256"; then
+				echo "$(cat "${f}.sha256")  ${f}" >"${f}.sha256.tmp"
+				mv "${f}.sha256.tmp" "${f}.sha256"
+				if ! _sha256sum -c "${f}.sha256" &>/dev/null; then
+					echo "gimme: sha256sum failed for '${f}'" >&2
+					echo 'gimme: continuing to next candidate URL' >&2
+					continue
+				fi
+			fi
 			return
 		fi
 	done
