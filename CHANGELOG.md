@@ -16,6 +16,16 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+## [1.4.0] - 2018-01-26
+
+### Added
+- optional installation of `race` directory when installing from source via
+  `GIMME_INSTALL_RACE`
+
+### Changed
+- ensure downloaded file SHA 256 checksums match if available
+- copyright and contributor info
+
 ## [1.3.0] - 2018-01-17
 
 ### Added
@@ -117,7 +127,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release!
 
-[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/travis-ci/gimme/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/travis-ci/gimme/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/travis-ci/gimme/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/travis-ci/gimme/compare/v1.0.4...v1.1.0
