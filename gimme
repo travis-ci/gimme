@@ -474,24 +474,9 @@ _get_curr_stable() {
 
 _update_stable() {
 	local stable="${1}"
-	local tmp_versions="${GIMME_TMP}/versions"
-	local url="https://www.googleapis.com/storage/v1/b/golang/o?fields=items%2Fname,nextPageToken"
-	local vers=""
-	local nextPageToken
+	local url="https://golang.org/VERSION?m=text"
 
-	mkdir -p "$(dirname "${stable}")"
-
-	_do_curl "${url}" "${tmp_versions}"
-	vers="$(jq -r '.items[].name | capture("go(?<ver>[[:digit:]\\.]*)\\.src.*").ver' <"$tmp_versions")"
-
-	while nextPageToken=$(jq --exit-status --raw-output '.nextPageToken' <"$tmp_versions"); do
-		_do_curl "${url}&pageToken=${nextPageToken}" "${tmp_versions}"
-		# shellcheck disable=SC1117
-		vers="${vers}\n$(jq -r '.items[].name | capture("go(?<ver>[[:digit:]\\.]*)\\.src.*").ver' <"$tmp_versions")"
-	done
-
-	rm -f "${tmp_versions}" &>/dev/null
-	echo -e "${vers}" | sort -n -r | head -n1 >"${stable}"
+	_do_curl "${url}" "${stable}"
 }
 
 _stat_unix() {
