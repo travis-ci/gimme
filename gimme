@@ -477,6 +477,7 @@ _update_stable() {
 	local url="https://golang.org/VERSION?m=text"
 
 	_do_curl "${url}" "${stable}"
+	sed -i '' -e 's/^go\(.*\)/\1/' "${stable}"
 }
 
 _stat_unix() {
