@@ -140,3 +140,38 @@ install:
 script:
     - go build -v ./...
 ```
+
+## Available Versions
+
+### Policy of Gimme
+
+Gimme only supports downloading versions which the Go developers make
+available.  If a version of Go is withdrawn, then Gimme has no logic
+to go look elsewhere for that version.  Thus as the Go Maintainers withdraw
+old releases, they'll stop being available for Gimme to fetch.
+
+Because Gimme caches builds, a testing framework which preserves that cache
+might still have older releases available, leading to sporadic failures.  The
+only fix is to switch to only requesting currently available versions of Go.
+
+The environment variable `$GIMME_DOWNLOAD_BASE` can be used to point Gimme
+at another location, so if you need to keep working with older Go releases,
+then you can maintain your own software artifact mirror which preserves those
+versions and point Gimme at that instead.
+
+### Asking Gimme about Available Versions
+
+Invoke `gimme -k` or `gimme --known` to have Gimme report the versions which
+can be installed; invoking `gimme stable` installs the version which the Go
+Maintainers have declared to be stable.  Both of these involve making
+non-cached network requests to retrieve this information.
+
+The `stable` request retrieves <https://golang.org/VERSION?m=text> and reports
+that.
+
+The `known` request retrieves <https://golang.org/dl> and parses the page to
+find releases.  This is not the same as the location where the images are
+retrieved from, thus it's possible for `known` to know about more or fewer
+versions than are actually available.  We proceed on the basis that the
+documented releases are suitable and undocumented releases no longer are.
+
