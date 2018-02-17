@@ -445,9 +445,13 @@ _list_versions() {
 	current_version="${current_version##*/go}"
 	current_version="${current_version%%.${GIMME_OS}.*}"
 
+	# 1.1 1.10 1.2 is bad; zsh has `setopt numeric_glob_sort` but bash
+	# doesn't appear to have anything like that.
 	for d in "${GIMME_VERSION_PREFIX}/go"*".${GIMME_OS}."*; do
 		local cleaned="${d##*/go}"
 		cleaned="${cleaned%%.${GIMME_OS}.*}"
+		echo "${cleaned}"
+	done | _version_sort | while read -r cleaned; do
 		echo -en "${cleaned}"
 		if [[ "${cleaned}" == "${current_version}" ]]; then
 			echo -en ' <= current' >&2
