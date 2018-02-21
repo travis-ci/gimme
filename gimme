@@ -710,8 +710,13 @@ while [[ $# -gt 0 ]]; do
 		exit 0
 		;;
 	-r | --resolve | resolve)
-		[[ $# -eq 2 ]] || die "resolve must be given an option afterwards (and nothing else)"
-		_resolve_version "${2}"
+		if [[ $# -ge 2 ]]; then
+			_resolve_version "${2}"
+		elif [[ -n "${GIMME_GO_VERSION:-}" ]]; then
+			_resolve_version "${GIMME_GO_VERSION}"
+		else
+			die "resolve must be given a version to resolve"
+		fi
 		exit $?
 		;;
 	-l | --list | list)

@@ -165,7 +165,7 @@ Invoke `gimme -k` or `gimme --known` to have Gimme report the versions which
 can be installed; invoking `gimme stable` installs the version which the Go
 Maintainers have declared to be stable.  Both of these involve making
 network requests to retrieve this information, although the `--known` output
-is cached.  (Use `--force-update` to ignore the cache).
+is cached.  (Use `--force-known-update` to ignore the cache).
 
 The `stable` request retrieves <https://golang.org/VERSION?m=text> and reports
 that.
