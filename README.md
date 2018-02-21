@@ -140,3 +140,75 @@ install:
 script:
     - go build -v ./...
 ```
+
+## Available Versions
+
+### Policy of Gimme
+
+Gimme only supports downloading versions which the Go developers make
+available.  If a version of Go is withdrawn, then Gimme has no logic
+to go look elsewhere for that version.  Thus as the Go Maintainers withdraw
+old releases, they'll stop being available for Gimme to fetch.
+
+Because Gimme caches builds, a testing framework which preserves that cache
+might still have older releases available, leading to sporadic failures.  The
+only fix is to switch to only requesting currently available versions of Go.
+
+The environment variable `$GIMME_DOWNLOAD_BASE` can be used to point Gimme
+at another location, so if you need to keep working with older Go releases,
+then you can maintain your own software artifact mirror which preserves those
+versions and point Gimme at that instead.
+
+### Asking Gimme about Available Versions
+
+Invoke `gimme -k` or `gimme --known` to have Gimme report the versions which
+can be installed; invoking `gimme stable` installs the version which the Go
+Maintainers have declared to be stable.  Both of these involve making
+network requests to retrieve this information, although the `--known` output
+is cached.  (Use `--force-known-update` to ignore the cache).
+
+The `stable` request retrieves <https://golang.org/VERSION?m=text> and reports
+that.
+
+The `known` request retrieves <https://golang.org/dl> and parses the page to
+find releases.  This is not the same as the location where the images are
+retrieved from, thus it's possible for `known` to know about more or fewer
+versions than are actually available.  We proceed on the basis that the
+documented releases are suitable and undocumented releases no longer are.
+
+This `known` list also includes any versions locally known.
+
+### Asking Gimme what a version is
+
+Gimme now supports the concept of `.x`, as a version suffix; eg, `1.10.x`
+might be `1.10` before the release of `1.10.1` but become `1.10.1` once that's
+available.
+
+To make this easier, and reduce duplicate invocations, Gimme now supports a
+"query" which, instead of producing normal output, just prints the resolution
+of a version specifier.  This is the `--resolve` option.  It handles the `.x`
+suffix and the `stable` string; all other inputs are passed through unchanged,
+although unknown names will be accompanied by an error message and an exit
+code of 2.
+
+Thus given a list of versions to invoke against, tooling might do a first pass
+to use `--resolve` on each and de-duplicate, so that if an alias and a
+hard-coded version map to the same version, then only one invocation needs to
+happen.
+
+Gimme only supports `.x` at the end of a version specifier.  
+The `--resolve` option must be given a version on the command-line afterwards,
+not by any other means.  
+The `--resolve` option and mechanism ignores any installed versions and relies
+solely upon upstream-exposed lists of available versions and resolvable tags.  
+A git tag named ending `.x` will never be found.  
+Use of `.x` will not find release candidates, alphas, betas or other
+non-release versions: it's only for finding the last stable release.  
+Use of `${GIMME_TYPE}` to override `auto` and prevent `git` will affect
+`--resolve` by inhibiting use of git tags as valid names.  This is a feature.
+
+Note that because Gimme supports version identifiers which are git tags,
+`--resolve` defaults to handling this too.  This means that `--resolve` can be
+heavy-weight: without the Go repo cloned, first the entire Go repo must be
+cloned.  We default to "correct".  To avoid this, export `GIMME_TYPE=binary`
+and disable the git resolution mechanism.

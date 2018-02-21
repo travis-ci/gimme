@@ -18,6 +18,8 @@
 #+        -f --force force - remove the existing go installation if present prior to install
 #+          -l --list list - list installed go versions and exit
 #+        -k --known known - list known go versions and exit
+#+    --force-known-update - when used with --known, ignores the cache and updates
+#+    -r --resolve resolve - resolve a version specifier to a version, show that and exit
 #+  -
 #+  Influential env vars:
 #+  -
@@ -41,6 +43,7 @@
 #+     GIMME_CC_FOR_TARGET - cross compiler for cgo support
 #+     GIMME_DOWNLOAD_BASE - override base URL dir for download (default '${GIMME_DOWNLOAD_BASE}')
 #+        GIMME_LIST_KNOWN - override base URL for known go versions (default '${GIMME_LIST_KNOWN}')
+#+   GIMME_KNOWN_CACHE_MAX - seconds the cache for --known is valid for (default '${GIMME_KNOWN_CACHE_MAX}')
 #+  -
 #
 set -e
@@ -51,12 +54,20 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-GIMME_VERSION="v1.3.0"
-GIMME_COPYRIGHT="Copyright (c) 2015-2018 gimme contributors"
-GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/v1.3.0/LICENSE"
+readonly GIMME_VERSION="v1.3.0"
+readonly GIMME_COPYRIGHT="Copyright (c) 2015-2018 gimme contributors"
+readonly GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/${GIMME_VERSION}/LICENSE"
 export GIMME_VERSION
 export GIMME_COPYRIGHT
 export GIMME_LICENSE_URL
+
+program_name="$(basename "$0")"
+# shellcheck disable=SC1117
+warn() { printf >&2 "%s: %s\n" "${program_name}" "${*}"; }
+die() {
+	warn "$@"
+	exit 1
+}
 
 # _do_curl "url" "file"
 _do_curl() {
@@ -91,6 +102,21 @@ _sha256sum() {
 		shasum -a 256 "$@"
 	fi
 }
+
+# sort versions, handling 1.10 after 1.9, not before 1.2
+# FreeBSD sort has --version-sort, none of the others do
+# Looks like --general-numeric-sort is the safest; checked macOS 10.12.6, FreeBSD 10.3, Ubuntu Trusty
+if sort --version-sort </dev/null &>/dev/null; then
+	_version_sort() { sort --version-sort; }
+else
+	_version_sort() {
+		# If we go to four-digit minor or patch versions, then extend the padding here
+		# (but in such a world, perhaps --version-sort will have become standard by then?)
+		sed -E 's/\.([0-9](\.|$))/.00\1/g; s/\.([0-9][0-9](\.|$))/.0\1/g' |
+			sort --general-numeric-sort |
+			sed 's/\.00*/./g'
+	}
+fi
 
 # _do_curls "file" "url" ["url"...]
 _do_curls() {
@@ -419,9 +445,13 @@ _list_versions() {
 	current_version="${current_version##*/go}"
 	current_version="${current_version%%.${GIMME_OS}.*}"
 
+	# 1.1 1.10 1.2 is bad; zsh has `setopt numeric_glob_sort` but bash
+	# doesn't appear to have anything like that.
 	for d in "${GIMME_VERSION_PREFIX}/go"*".${GIMME_OS}."*; do
 		local cleaned="${d##*/go}"
 		cleaned="${cleaned%%.${GIMME_OS}.*}"
+		echo "${cleaned}"
+	done | _version_sort | while read -r cleaned; do
 		echo -en "${cleaned}"
 		if [[ "${cleaned}" == "${current_version}" ]]; then
 			echo -en ' <= current' >&2
@@ -430,25 +460,96 @@ _list_versions() {
 	done
 }
 
-_list_known() {
+_update_remote_known_list_if_needed() {
 	# shellcheck disable=SC1117
 	local exp="go([[:alnum:]\.]*)\.src.*" # :alnum: catches beta versions too
-	local list="${GIMME_TMP}/known-versions"
+	local list="${GIMME_VERSION_PREFIX}/known-versions.txt"
+	local dlfile="${GIMME_TMP}/known-dl"
 
-	local known
-	known="$(_list_versions 2>/dev/null)"
+	if [[ -e "${list}" ]] &&
+		! ((force_known_update)) &&
+		! _file_older_than_secs "${list}" "${GIMME_KNOWN_CACHE_MAX}"; then
+		echo "${list}"
+		return 0
+	fi
 
-	_do_curl "${GIMME_LIST_KNOWN}" "${list}"
+	[[ -d "${GIMME_VERSION_PREFIX:?}" ]] || mkdir -p -- "${GIMME_VERSION_PREFIX}"
+
+	_do_curl "${GIMME_LIST_KNOWN}" "${dlfile}"
 
 	while read -r line; do
 		if [[ "${line}" =~ ${exp} ]]; then
-			# shellcheck disable=SC1117
-			known="$known\n${BASH_REMATCH[1]}"
+			echo "${BASH_REMATCH[1]}"
 		fi
-	done <"${list}"
-
+	done <"${dlfile}" | _version_sort | uniq >"${list}.new"
 	rm -f "${list}" &>/dev/null
-	echo -e "${known}" | grep . | sort -n -r | uniq
+	mv "${list}.new" "${list}"
+
+	rm -f "${dlfile}"
+	echo "${list}"
+	return 0
+}
+
+_list_known() {
+	local knownfile
+	knownfile="$(_update_remote_known_list_if_needed)"
+
+	(
+		_list_versions 2>/dev/null
+		cat -- "${knownfile}"
+	) | grep . | _version_sort | uniq
+}
+
+# For the "invoked on commandline" case, we want to always pass unknown
+# strings through, so that we can be a uniqueness filter, but for unknown
+# names we want to exit with a value other than 1, so we document that
+# we'll exit 2.  For use by other functions, 2 is as good as 1.
+_resolve_version() {
+	case "${1}" in
+	stable)
+		_get_curr_stable
+		return 0
+		;;
+	tip)
+		echo "tip"
+		return 0
+		;;
+	*.x)
+		true
+		;;
+	*)
+		echo "${1}"
+		local GIMME_GO_VERSION="$1"
+		local ASSERT_ABORT='return'
+		if _assert_version_given 2>/dev/null; then
+			return 0
+		fi
+		warn "version specifier '${1}' unknown"
+		return 2
+		;;
+	esac
+	# We have a .x suffix
+	local base="${1%.x}"
+	local ver last='' known
+	known="$(_update_remote_known_list_if_needed)" # will be version-sorted
+	# avoid regexp attacks
+	while read -r ver; do
+		case "${ver}" in
+		${base})
+			last="${ver}"
+			;;
+		${base}.*)
+			last="${ver}"
+			;;
+		esac
+	done <"$known"
+	if [[ -n "${last}" ]]; then
+		echo "${last}"
+		return 0
+	fi
+	echo "${1}"
+	warn "given '${1}' but no release for '${base}' found"
+	return 2
 }
 
 _realpath() {
@@ -458,14 +559,8 @@ _realpath() {
 
 _get_curr_stable() {
 	local stable="${GIMME_VERSION_PREFIX}/stable"
-	local now_secs
-	now_secs="$(date +%s)"
-	local stable_age
-	stable_age="$(_stat_unix "${stable}" 2>/dev/null || echo 0)"
-	local age
-	age=$((now_secs - stable_age))
 
-	if [[ "${age}" -gt 86400 ]]; then
+	if _file_older_than_secs "${stable}" 86400; then
 		_update_stable "${stable}"
 	fi
 
@@ -478,18 +573,28 @@ _update_stable() {
 
 	_do_curl "${url}" "${stable}"
 	sed -i.old -e 's/^go\(.*\)/\1/' "${stable}"
+	rm -f "${stable}.old"
 }
 
-_stat_unix() {
+_last_mod_timestamp() {
 	local filename="${1}"
 	case "${GIMME_HOSTOS}" in
 	darwin | *bsd)
-		stat -f %a "${filename}"
+		stat -f %m "${filename}"
 		;;
 	linux)
 		stat -c %Y "${filename}"
 		;;
 	esac
+}
+
+_file_older_than_secs() {
+	local file="${1}"
+	local age_secs="${2}"
+	local ts
+	# if the file does not exist, we return true, as the cache needs updating
+	ts="$(_last_mod_timestamp "${file}" 2>/dev/null)" || return 0
+	((($(date +%s) - ts) > age_secs))
 }
 
 _assert_version_given() {
@@ -504,7 +609,14 @@ _assert_version_given() {
 		echo >&2 'error: no GIMME_GO_VERSION supplied'
 		echo >&2 "  ex: GIMME_GO_VERSION=1.4.1 ${0} ${*}"
 		echo >&2 "  ex: ${0} 1.4.1 ${*}"
-		exit 1
+		${ASSERT_ABORT:-exit} 1
+	fi
+
+	# Note: _resolve_version calls back to us (_assert_version_given), but
+	# only for cases where the version does not end with .x, so this should
+	# be safe.
+	if [[ "${GIMME_GO_VERSION}" == *.x ]]; then
+		GIMME_GO_VERSION="$(_resolve_version "${GIMME_GO_VERSION}")" || ${ASSERT_ABORT:-exit} 1
 	fi
 
 	if [[ "${GIMME_GO_VERSION}" == +([[:digit:]]).+([[:digit:]])* ]]; then
@@ -518,7 +630,7 @@ _assert_version_given() {
 
 	echo >&2 'error: GIMME_GO_VERSION not recognized as valid'
 	echo >&2 "  got: ${GIMME_GO_VERSION}"
-	exit 1
+	${ASSERT_ABORT:-exit} 1
 }
 
 _exclude_from_backups() {
@@ -558,6 +670,7 @@ _to_goarch() {
 : "${GIMME_BINARY_OSX:=osx10.8}"
 : "${GIMME_DOWNLOAD_BASE:=https://storage.googleapis.com/golang}"
 : "${GIMME_LIST_KNOWN:=https://golang.org/dl}"
+: "${GIMME_KNOWN_CACHE_MAX:=10800}"
 
 # The version prefix must be an absolute path
 case "${GIMME_VERSION_PREFIX}" in
@@ -580,6 +693,9 @@ if [[ "${GIMME_OS}" == mingw* ]]; then
 	fi
 fi
 
+force_install=0
+force_known_update=0
+
 while [[ $# -gt 0 ]]; do
 	case "${1}" in
 	-h | --help | help | wat)
@@ -599,6 +715,16 @@ while [[ $# -gt 0 ]]; do
 		echo "${GIMME_VERSION}"
 		exit 0
 		;;
+	-r | --resolve | resolve)
+		if [[ $# -ge 2 ]]; then
+			_resolve_version "${2}"
+		elif [[ -n "${GIMME_GO_VERSION:-}" ]]; then
+			_resolve_version "${GIMME_GO_VERSION}"
+		else
+			die "resolve must be given a version to resolve"
+		fi
+		exit $?
+		;;
 	-l | --list | list)
 		_list_versions
 		exit 0
@@ -608,7 +734,10 @@ while [[ $# -gt 0 ]]; do
 		exit 0
 		;;
 	-f | --force | force)
-		force=1
+		force_install=1
+		;;
+	--force-known-update | force-known-update)
+		force_known_update=1
 		;;
 	-i | install)
 		true # ignore a dummy argument
@@ -656,7 +785,7 @@ fi
 
 _assert_version_given "$@"
 
-[ ${force} ] && _wipe_version "${GIMME_GO_VERSION}"
+((force_install)) && _wipe_version "${GIMME_GO_VERSION}"
 
 unset GOARCH
 unset GOBIN
