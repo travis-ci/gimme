@@ -104,8 +104,9 @@ _sha256sum() {
 }
 
 # sort versions, handling 1.10 after 1.9, not before 1.2
-# FreeBSD sort has --version-sort, none of the others do
-# Looks like --general-numeric-sort is the safest; checked macOS 10.12.6, FreeBSD 10.3, Ubuntu Trusty
+# FreeBSD sort has --version-sort, as does Ubuntu Xenial.
+# Looks like --general-numeric-sort is the safest;
+# checked macOS 10.12.6, FreeBSD 10.3, Ubuntu Trusty.
 if sort --version-sort </dev/null &>/dev/null; then
 	_version_sort() { sort --version-sort; }
 else
@@ -224,25 +225,46 @@ _extract() {
 }
 
 # _setup_bootstrap
+#
+# ASSUMPTION: gimme's bootstrap is not being used to make a Go release which
+# can be copied to another system and used _there_ to build, but is instead
+# invoked locally to build the final version, where the final version will
+# be used for any cross-compilation.  Therefore we always want to use the
+# `HOST` variants for OS/ARCH for the bootstrap stage.
 _setup_bootstrap() {
-	local versions=("1.10" "1.9" "1.8" "1.7" "1.6" "1.5" "1.4")
+	# Keep these to versions receiving patch updates
+	local versions=("1.10.x" "1.9.x" "1.8.x")
+	local want candidate
 
-	# try existing
+	# We'll still be explicit below about wanting the host variants, but
+	# the _try_binary variant doesn't let us specify an OS override, so localize
+	# the variables such that any function we invoke will act as though we're not
+	# cross-compiling.
+	local GIMME_OS="${GIMME_HOSTOS}" GIMME_ARCH="${GIMME_HOSTARCH}"
+
+	# Point releases are usually some kind of security or stability (code
+	# generation quality) fix, so rather than try "any ancient Go we have", we
+	# want to use a Go which is still (probably) receiving updates, and the
+	# _last_ one on that branch.  We'd rather have the current point release on
+	# an older-but-supported branch than a stale known-buggy point release on the
+	# current release branch.
+
 	for v in "${versions[@]}"; do
-		for candidate in "${GIMME_ENV_PREFIX}/go${v}"*".env"; do
-			if [ -s "${candidate}" ]; then
-				# shellcheck source=/dev/null
-				GOROOT_BOOTSTRAP="$(source "${candidate}" 2>/dev/null && go env GOROOT)"
-				export GOROOT_BOOTSTRAP
-				return 0
-			fi
-		done
+		want="$(_resolve_version "${v}")"
+		candidate="${GIMME_ENV_PREFIX}/go${want:?}.${GIMME_HOSTOS:?}.${GIMME_HOSTARCH:?}.env"
+		if [ -s "${candidate}" ]; then
+			# shellcheck source=/dev/null
+			GOROOT_BOOTSTRAP="$(source "${candidate}" 2>/dev/null && go env GOROOT)"
+			export GOROOT_BOOTSTRAP
+			return 0
+		fi
 	done
 
 	# try binary
 	for v in "${versions[@]}"; do
-		if [ -n "$(_try_binary "${v}" "${GIMME_HOSTARCH}")" ]; then
-			export GOROOT_BOOTSTRAP="${GIMME_VERSION_PREFIX}/go${v}.${GIMME_OS}.${GIMME_HOSTARCH}"
+		want="$(_resolve_version "${v}")"
+		if [ -n "$(_try_binary "${want}" "${GIMME_HOSTARCH}")" ]; then
+			export GOROOT_BOOTSTRAP="${GIMME_VERSION_PREFIX}/go${v}.${GIMME_HOSTOS}.${GIMME_HOSTARCH}"
 			return 0
 		fi
 	done
