@@ -241,7 +241,7 @@ _checkout() {
 		[[ "${spec}" != "@" ]] || spec="HEAD"
 	fi
 
-	try_spec() { git -C "${godir}" reset -q --hard "$@"; }
+	try_spec() { git -C "${godir}" reset -q --hard "$@" -- 2>/dev/null; }
 
 	retval=1
 	if ((probe_named)); then
