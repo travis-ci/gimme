@@ -43,8 +43,6 @@ can_resolve_version() {
 sanity_checks() {
 	echo "---> doing sanity checks that all known versions resolve"
 	local v
-	GIMME_TYPE=binary
-	export GIMME_TYPE
 	for v in ${RUNTESTS_EXTRA_RESOLVE:-}; do
 		can_resolve_version "$v"
 	done
