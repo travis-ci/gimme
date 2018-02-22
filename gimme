@@ -470,7 +470,7 @@ _try_source() {
 	local src_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
 	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
 
-	[[ "${version}" =~ ${ALLOWED_UPSTREAM_VERSION_RE} ]] || return 1
+	[[ "${GIMME_GO_VERSION}" =~ ${ALLOWED_UPSTREAM_VERSION_RE} ]] || return 1
 
 	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return 1
 	_extract "${src_tgz}" "${src_dir}" || return 1
