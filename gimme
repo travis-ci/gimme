@@ -78,7 +78,7 @@ die() {
 #   (both to avoid annoying download server operators with attacks and
 #    because regexp backtracking can be pathological).
 # Per _assert_version_given we do assume 2.0 not 2
-ALLOWED_UPSTREAM_VERSION_RE='^[1-9][0-9]{0,3}(\.[0-9][0-9a-zA-Z_-]{,9})+$'
+ALLOWED_UPSTREAM_VERSION_RE='^[1-9][0-9]{0,3}(\.[0-9][0-9a-zA-Z_-]{0,9})+$'
 #
 # The main path which allowed these to leak upstream before has been closed
 # but a valid git repo tag or branch-name will still reach the point of
