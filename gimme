@@ -439,6 +439,8 @@ _try_existing() {
 			sed -n -e 's/^export PATH="\(.*\)\/bin:.*$/export GOROOT='"'"'\1'"'"';/p' <"${existing_env}"
 			echo
 		fi
+		# Export the same variables whether building new or using existing
+		echo "export GIMME_ENV='${existing_env}';"
 		return
 	fi
 
