@@ -146,8 +146,8 @@ _do_curls() {
 				echo "$(cat "${f}.sha256")  ${f}" >"${f}.sha256.tmp"
 				mv "${f}.sha256.tmp" "${f}.sha256"
 				if ! _sha256sum -c "${f}.sha256" &>/dev/null; then
-					echo "gimme: sha256sum failed for '${f}'" >&2
-					echo 'gimme: continuing to next candidate URL' >&2
+					warn "sha256sum failed for '${f}'"
+					warn 'continuing to next candidate URL'
 					continue
 				fi
 			fi
@@ -912,6 +912,6 @@ if ! case "${GIMME_TYPE}" in
 		;;
 	esac; then
 	echo >&2 "I don't have any idea what to do with '${GIMME_GO_VERSION}'."
-	echo >&2 "  (using type '${GIMME_TYPE}')"
+	echo >&2 "  (using download type '${GIMME_TYPE}')"
 	exit 1
 fi
