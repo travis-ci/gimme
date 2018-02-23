@@ -189,7 +189,8 @@ To make this easier, and reduce duplicate invocations, Gimme now supports a
 of a version specifier.  This is the `--resolve` option.  It handles the `.x`
 suffix and the `stable` string; all other inputs are passed through unchanged,
 although unknown names will be accompanied by an error message and an exit
-code of 2.
+code of 2.  A valid version identifier, even if not currently downloadable
+from upstream, will resolve successfully.  "Can resolve" is not "exists".
 
 Thus given a list of versions to invoke against, tooling might do a first pass
 to use `--resolve` on each and de-duplicate, so that if an alias and a

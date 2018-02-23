@@ -10,10 +10,52 @@ main() {
 	local go_bootstrap_version="${1}"
 	shift
 
+	sanity_checks "$@"
+
 	echo "---> using bootstrap version ${go_bootstrap_version}"
 	eval "$(./gimme "${go_bootstrap_version}")"
 
 	"_test_${target}" "$@"
+}
+
+die() {
+	printf >&2 '***> %s\n' "$*"
+	exit 1
+}
+
+can_resolve_version() {
+	local GIMME_TYPE='binary'
+	export GIMME_TYPE
+	local want="${1}"
+	local ev r
+	ev=0
+	r="$(./gimme --resolve "${want}" 2>/dev/null)" || ev=$?
+	if ! [[ -n "${r}" ]]; then
+		die "no output resolving input version '${want}'"
+	fi
+	case $ev in
+	0) true ;;
+	2) die "failed to resolve version '${want}'" ;;
+	*) die "unexpected error resolving version '${want}'" ;;
+	esac
+}
+
+sanity_checks() {
+	echo "---> doing sanity checks that all known versions resolve"
+	local v
+	for v in ${RUNTESTS_EXTRA_RESOLVE:-}; do
+		can_resolve_version "$v"
+	done
+	for v in "$@"; do
+		case "${v}" in
+		master) continue ;;
+		go*) v="${v#go}" ;;
+		esac
+		can_resolve_version "${v}"
+		if [[ "${v}" =~ ^[0-9.]+$ ]]; then
+			can_resolve_version "${v}.x"
+		fi
+	done
 }
 
 _test_native() {
