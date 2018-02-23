@@ -69,6 +69,21 @@ die() {
 	exit 1
 }
 
+# We don't want to go around hitting Google's servers with requests for
+# files named HEAD@{date}.tar so we only try binary/source downloads if
+# it looks like a plausible name to us.
+# We don't need to support 0. releases of Go.
+# We don't support 5 digit major-versions of Go (limit back-tracking in RE).
+# We don't support very long versions
+#   (both to avoid annoying download server operators with attacks and
+#    because regexp backtracking can be pathological).
+# Per _assert_version_given we do assume 2.0 not 2
+ALLOWED_UPSTREAM_VERSION_RE='^[1-9][0-9]{0,3}(\.[0-9][0-9a-zA-Z_-]{0,9})+$'
+#
+# The main path which allowed these to leak upstream before has been closed
+# but a valid git repo tag or branch-name will still reach the point of
+# being _tried_ upstream.
+
 # _do_curl "url" "file"
 _do_curl() {
 	mkdir -p "$(dirname "${2}")"
@@ -200,15 +215,60 @@ _fetch() {
 }
 
 # _checkout "version" "dir"
+# NB: might emit a "renamed version" on stdout
 _checkout() {
-	_fetch "${2}"
-	(cd "${2}" && {
-		git reset -q --hard "origin/${1}" ||
-			git reset -q --hard "origin/go${1}" ||
-			{ [ "${1}" = 'tip' ] && git reset -q --hard origin/master; } ||
-			git reset -q --hard "refs/tags/${1}" ||
-			git reset -q --hard "refs/tags/go${1}"
-	} 2>/dev/null)
+	local spec="${1:?}" godir="${2:?}"
+	# We are called twice, once during validation that a version was given and
+	# later during build.  We don't want to fetch twice, so we are fetching
+	# during the validation only, in the caller.
+
+	if [[ "${spec}" =~ ^[0-9a-f]{6,}$ ]]; then
+		# We always treat this as a commit sha, whether instead of doing
+		# branch tests etc.  It looks like a commit sha and the Go maintainers
+		# aren't daft enough to use pure hex for a tag or branch.
+		git -C "$godir" reset -q --hard "${spec}" || return 1
+		return 0
+	fi
+
+	# If spec looks like HEAD^{something} or HEAD^^^ then trying
+	# origin/$spec would succeed but we'd write junk to the filesystem,
+	# propagating annoying characters out.
+	local retval probe_named disallow rev
+
+	probe_named=1
+	disallow='[@^~:{}]'
+	if [[ "${spec}" =~ $disallow ]]; then
+		probe_named=0
+		[[ "${spec}" != "@" ]] || spec="HEAD"
+	fi
+
+	try_spec() { git -C "${godir}" reset -q --hard "$@" -- 2>/dev/null; }
+
+	retval=1
+	if ((probe_named)); then
+		retval=0
+		try_spec "origin/${spec}" ||
+			try_spec "origin/go${spec}" ||
+			{ [[ "${spec}" == "tip" ]] && try_spec origin/master; } ||
+			try_spec "refs/tags/${spec}" ||
+			try_spec "refs/tags/go${spec}" ||
+			retval=1
+	fi
+
+	if ((retval)); then
+		retval=0
+		# We're about to reset anyway, if we succeed, so we should reset to a
+		# known state before parsing what might be relative specs
+		try_spec origin/master &&
+			rev="$(git -C "${godir}" rev-parse --verify -q "${spec}^{object}")" &&
+			try_spec "${rev}" &&
+			git -C "${godir}" rev-parse --verify -q --short=12 "${rev}" ||
+			retval=1
+		# that rev-parse prints to stdout, so we can affect the version seen
+	fi
+
+	unset -f try_spec
+	return $retval
 }
 
 # _extract "file.tar.gz" "dir"
@@ -361,7 +421,8 @@ _env_alias() {
 	fi
 
 	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" && "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
-		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.env"
+		# GIMME_GO_VERSION might be a branch, which can contain '/'
+		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION//\//__}.env"
 		cp "${2}" "${dest}"
 		ln -sf "${dest}" "${GIMME_ENV_PREFIX}/latest.env"
 		echo "${dest}"
@@ -414,6 +475,8 @@ _try_binary() {
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${version}.${GIMME_OS}.${arch}"
 	local bin_env="${GIMME_ENV_PREFIX}/go${version}.${GIMME_OS}.${arch}.env"
 
+	[[ "${version}" =~ ${ALLOWED_UPSTREAM_VERSION_RE} ]] || return 1
+
 	if [ "${GIMME_OS}" = 'windows' ]; then
 		bin_tgz=${bin_tgz%.tar.gz}.zip
 	fi
@@ -429,6 +492,8 @@ _try_source() {
 	local src_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
 	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
 
+	[[ "${GIMME_GO_VERSION}" =~ ${ALLOWED_UPSTREAM_VERSION_RE} ]] || return 1
+
 	_source "${GIMME_GO_VERSION}" "${src_tgz}" || return 1
 	_extract "${src_tgz}" "${src_dir}" || return 1
 	_compile "${src_dir}" || return 1
@@ -437,11 +502,23 @@ _try_source() {
 	echo "export GIMME_ENV=\"$(_env_alias "${src_dir}" "${src_env}")\""
 }
 
+# We do _not_ try to use any version caching with _try_existing(), but instead
+# build afresh each time.  We don't want to deal with someone moving the repo
+# to other-version, doing an install, then resetting it back to
+# last-version-we-saw and thus introducing conflicts.
+#
+# If you want to re-use a built-at-spec version, then avoid moving the repo
+# and source the generated .env manually.
+# Note that the env will just refer to the 'go' directory, so it's not safe
+# to reuse anyway.
 _try_git() {
 	local git_dir="${GIMME_VERSION_PREFIX}/go"
 	local git_env="${GIMME_ENV_PREFIX}/go.git.${GIMME_OS}.${GIMME_ARCH}.env"
+	local resolved_sha
 
-	_checkout "${GIMME_GO_VERSION}" "${git_dir}" || return 1
+	# Any tags should have been resolved when we asserted that we were
+	# given a version, so no need to handle that here.
+	_checkout "${GIMME_GO_VERSION}" "${git_dir}" >/dev/null || return 1
 	_compile "${git_dir}" || return 1
 	_try_install_race "${git_dir}" || return 1
 	_env "${git_dir}" | tee "${git_env}" || return 1
@@ -637,6 +714,7 @@ _assert_version_given() {
 	# Note: _resolve_version calls back to us (_assert_version_given), but
 	# only for cases where the version does not end with .x, so this should
 	# be safe.
+	# This should be untangled.  PRs accepted, good starter project.
 	if [[ "${GIMME_GO_VERSION}" == *.x ]]; then
 		GIMME_GO_VERSION="$(_resolve_version "${GIMME_GO_VERSION}")" || ${ASSERT_ABORT:-exit} 1
 	fi
@@ -645,9 +723,22 @@ _assert_version_given() {
 		return 0
 	fi
 
+	# Here we resolve symbolic references.  If we don't, then we get some
+	# random git tag name being accepted as valid and then we try to
+	# curl garbage from upstream.
 	if [[ "${GIMME_TYPE}" == "auto" || "${GIMME_TYPE}" == "git" ]]; then
 		local git_dir="${GIMME_VERSION_PREFIX}/go"
-		_checkout "${GIMME_GO_VERSION}" "${git_dir}" && return 0
+		local resolved_sha
+		_fetch "${git_dir}"
+		if resolved_sha="$(_checkout "${GIMME_GO_VERSION}" "${git_dir}")"; then
+			if [[ -n "${resolved_sha}" ]]; then
+				# Break our normal silence, this one really needs to be seen on stderr
+				# always; auditability and knowing what version of Go you got wins.
+				warn "resolved '${GIMME_GO_VERSION}' to '${resolved_sha}'"
+				GIMME_GO_VERSION="${resolved_sha}"
+			fi
+			return 0
+		fi
 	fi
 
 	echo >&2 'error: GIMME_GO_VERSION not recognized as valid'
@@ -738,6 +829,9 @@ while [[ $# -gt 0 ]]; do
 		exit 0
 		;;
 	-r | --resolve | resolve)
+		# The normal mkdir of versions is below; we don't want to move it up
+		# to where we create files just if asked our version; thus
+		# _resolve_version has to mkdir the versions dir itself.
 		if [[ $# -ge 2 ]]; then
 			_resolve_version "${2}"
 		elif [[ -n "${GIMME_GO_VERSION:-}" ]]; then
