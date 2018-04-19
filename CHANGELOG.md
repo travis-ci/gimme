@@ -16,6 +16,18 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+## [1.5.0] - 2018-04-18
+
+### Added
+- docs about version policy
+- `--resolve` flag
+- automatic resolution of `.x` versions
+
+### Fixed
+- fetch current stable via [less convoluted
+  API](https://golang.org/VERSION?m=text), eliminating `jq` dependency
+- feedback messaging around `GIMME_TYPE=auto`
+
 ## [1.4.0] - 2018-01-26
 
 ### Added
@@ -127,7 +139,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release!
 
-[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/travis-ci/gimme/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/travis-ci/gimme/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/travis-ci/gimme/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/travis-ci/gimme/compare/v1.1.0...v1.2.0
