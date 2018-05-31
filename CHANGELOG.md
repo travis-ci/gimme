@@ -16,7 +16,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
-## [1.5.0] - 2018-04-18
+## [1.5.0] - 2018-05-29
 
 ### Added
 - docs about version policy
