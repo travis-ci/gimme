@@ -197,77 +197,124 @@ _source() {
 	_do_curls "${2}" "${urls[@]}"
 }
 
-# _fetch "dir"
-_fetch() {
-	mkdir -p "$(dirname "${1}")"
+# _common_git manages the bare git repo used as a cache for all the git state;
+# this lets us have N parallel git-built versions without retrieving all the
+# git content each time.  The state is shared, with `git clone --reference`,
+# and this is acceptable for our usage models, where the entire gimme tree
+# should be shared, or none of it.
+#
+# Optional arg: a revision which we want to exist; if it already exists,
+# then don't bother fetching.  If not supplied, or does not exist, then
+# we will fetch.
+_common_git() {
+	local -r git_bare="${GIMME_BARE_REPO:?}"
+	local -r old_git_location="${GIMME_VERSION_PREFIX}/go/.git"
+	local -r requested="${1:-}"
+	local fetched=false
 
-	if [[ -d "${1}/.git" ]]; then
-		(
-			cd "${1}"
-			git remote set-url origin "${GIMME_GO_GIT_REMOTE}"
-			git fetch -q --all && git fetch -q --tags
-		)
-		return
+	local -ar FETCH=(git -C "${git_bare}" fetch -q --all --tags --prune)
+	local -ar VERIFY=(git -C "${git_bare}" rev-parse -q --verify "${requested}^{object}")
+
+	if [[ ! -d "${git_bare}" ]]; then
+		if [[ -d "${old_git_location}" ]]; then
+			# --dissociate is new enough that we can't rely upon it
+			git clone -q --bare --reference "${old_git_location}" "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
+			git -C "${git_bare}" repack -a -d -q
+			rm -f "${git_bare}/objects/info/alternates"
+		else
+			git clone -q --bare "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
+		fi
+		fetched=true
 	fi
 
-	git clone -q "${GIMME_GO_GIT_REMOTE}" "${1}"
-}
-
-# _checkout "version" "dir"
-# NB: might emit a "renamed version" on stdout
-_checkout() {
-	local spec="${1:?}" godir="${2:?}"
-	# We are called twice, once during validation that a version was given and
-	# later during build.  We don't want to fetch twice, so we are fetching
-	# during the validation only, in the caller.
-
-	if [[ "${spec}" =~ ^[0-9a-f]{6,}$ ]]; then
-		# We always treat this as a commit sha, whether instead of doing
-		# branch tests etc.  It looks like a commit sha and the Go maintainers
-		# aren't daft enough to use pure hex for a tag or branch.
-		git -C "$godir" reset -q --hard "${spec}" || return 1
+	if [[ -z "${requested}" ]]; then
+		$fetched || "${FETCH[@]}"
 		return 0
 	fi
 
-	# If spec looks like HEAD^{something} or HEAD^^^ then trying
-	# origin/$spec would succeed but we'd write junk to the filesystem,
-	# propagating annoying characters out.
-	local retval probe_named disallow rev
+	if "${VERIFY[@]}" >/dev/null; then
+		return 0
+	fi
+	"${FETCH[@]}"
+	if "${VERIFY[@]}" >/dev/null; then
+		return 0
+	else
+		warn "updated common go repo, unable to resolve: ${requested}"
+		return 1
+	fi
+}
 
-	probe_named=1
-	disallow='[@^~:{}]'
-	if [[ "${spec}" =~ $disallow ]]; then
-		probe_named=0
-		[[ "${spec}" != "@" ]] || spec="HEAD"
+# Handles arbitrary specifications and prints the resolved form to stdout,
+# as a directory-safe string, which is currently always just hex, identifying
+# the commit.  So tag version strings aren't kept.
+# The directory name is fully resolved, so that "HEAD dead" and "HEAD beef" are
+# both valid outputs, but we'll write "somewhere else".  The directory name is
+# _always_ a SHA and so safe!
+#
+# Usage: _resolve_git_spec <sha|refname|whatever>
+_resolve_git_spec() {
+	local spec="${1:?}"
+	local -r git_bare="${GIMME_BARE_REPO:?}"
+
+	# Anything like 'tip' or a branch name, we'll need to update first, but if
+	# it's a tag or a commit, we could avoid the fetch.  However, I'm not convinced
+	# that the added complexity of parsing those apart is worthwhile, so only optimize
+	# for the explicit sha case.
+	if [[ "${spec}" =~ ^[0-9a-f]{6,}$ ]]; then
+		_common_git "${spec}"
+	else
+		_common_git
 	fi
 
-	try_spec() { git -C "${godir}" reset -q --hard "$@" -- 2>/dev/null; }
+	case "$spec" in
+	tip)
+		spec="master"
+		;;
+	esac
 
-	retval=1
-	if ((probe_named)); then
-		retval=0
-		try_spec "origin/${spec}" ||
-			try_spec "origin/go${spec}" ||
-			{ [[ "${spec}" == "tip" ]] && try_spec origin/master; } ||
-			try_spec "refs/tags/${spec}" ||
-			try_spec "refs/tags/go${spec}" ||
-			retval=1
-	fi
+	# If we don't specify a length to short, then at some point in repo growth,
+	# git's heuristics will add an extra digit and we'll lose all cached builds.
+	# 10 characters is sufficient today, 16 should buy us lots of growth but not
+	# yield insane filenames when joined with other strings.
+	try_spec() {
+		git -C "${git_bare}" rev-parse -q --short=16 --verify "${1:?}^{commit}" 2>/dev/null
+	}
 
-	if ((retval)); then
-		retval=0
-		# We're about to reset anyway, if we succeed, so we should reset to a
-		# known state before parsing what might be relative specs
-		try_spec origin/master &&
-			rev="$(git -C "${godir}" rev-parse --verify -q "${spec}^{object}")" &&
-			try_spec "${rev}" &&
-			git -C "${godir}" rev-parse --verify -q --short=12 "${rev}" ||
-			retval=1
-		# that rev-parse prints to stdout, so we can affect the version seen
-	fi
+	local success=true
+	try_spec "${spec}" ||
+		try_spec "go${spec}" ||
+		success=false
 
 	unset -f try_spec
-	return $retval
+
+	if $success; then
+		# have printed a sha
+		return 0
+	fi
+
+	warn "unable to resolve git spec: '${spec}'"
+	return 1
+}
+
+# _checkout_sha "sha" "dir"
+_checkout_sha() {
+	local -r spec="${1:?}" godir="${2:?}"
+	local -r git_bare="${GIMME_BARE_REPO:?}"
+
+	# We expect the checkouts to be immutable once cloned, because they're
+	# revision-specific, so should never need to be rebuilt.
+	if [[ -d "${godir}" ]]; then
+		local have
+		have="$(git -C "${godir}" rev-parse --short=16 HEAD)"
+		if [[ "${have}" == "${spec}" ]]; then
+			return 0
+		fi
+		die "MUTATED IMMUTABLE: expect dir '${godir}' to be at SHA ${spec} but is at ${have}"
+	fi
+
+	git clone -q --reference "${git_bare}" "${GIMME_GO_GIT_REMOTE}" "${godir}"
+	git -C "$godir" reset -q --hard "${spec}" || return 1
+	return 0
 }
 
 # _extract "file.tar.gz" "dir"
@@ -419,6 +466,12 @@ _try_existing() {
 		local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
 		local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
 		;;
+	git)
+		local resolved_sha
+		resolved_sha="$(_resolve_git_spec "$GIMME_GO_VERSION")" || return 1
+		local existing_ver="${GIMME_VERSION_PREFIX}/git.${resolved_sha}"
+		local existing_env="${GIMME_ENV_PREFIX}/git.${resolved_sha}.${GIMME_OS}.${GIMME_ARCH}.env"
+		;;
 	*)
 		_try_existing binary || _try_existing source
 		return $?
@@ -492,13 +545,21 @@ _try_source() {
 # Note that the env will just refer to the 'go' directory, so it's not safe
 # to reuse anyway.
 _try_git() {
-	local git_dir="${GIMME_VERSION_PREFIX}/go"
-	local git_env="${GIMME_ENV_PREFIX}/go.git.${GIMME_OS}.${GIMME_ARCH}.env"
 	local resolved_sha
 
-	# Any tags should have been resolved when we asserted that we were
-	# given a version, so no need to handle that here.
-	_checkout "${GIMME_GO_VERSION}" "${git_dir}" >/dev/null || return 1
+	resolved_sha="$(_resolve_git_spec "$GIMME_GO_VERSION")" || return 1
+	local git_dir="${GIMME_VERSION_PREFIX}/git.${resolved_sha}"
+	local git_env="${GIMME_ENV_PREFIX}/git.${resolved_sha}.${GIMME_OS}.${GIMME_ARCH}.env"
+
+	if [[ -d "${git_dir}" ]]; then
+		if _try_existing git; then
+			return 0
+		fi
+		# We're here if something went wrong with compilation before;
+		# continue on, try to repair.
+	fi
+
+	_checkout_sha "${resolved_sha}" "${git_dir}" || return 1
 	_compile "${git_dir}" || return 1
 	_try_install_race "${git_dir}" || return 1
 	_env "${git_dir}" | tee "${git_env}" || return 1
@@ -705,18 +766,18 @@ _assert_version_given() {
 
 	# Here we resolve symbolic references.  If we don't, then we get some
 	# random git tag name being accepted as valid and then we try to
-	# curl garbage from upstream.
+	# curl garbage from upstream.  The resolution happens always, including
+	# for tags, as we'll map tags to commit shas for git builds.
 	if [[ "${GIMME_TYPE}" == "auto" || "${GIMME_TYPE}" == "git" ]]; then
-		local git_dir="${GIMME_VERSION_PREFIX}/go"
 		local resolved_sha
-		_fetch "${git_dir}"
-		if resolved_sha="$(_checkout "${GIMME_GO_VERSION}" "${git_dir}")"; then
-			if [[ -n "${resolved_sha}" ]]; then
-				# Break our normal silence, this one really needs to be seen on stderr
-				# always; auditability and knowing what version of Go you got wins.
+		if resolved_sha="$(_resolve_git_spec "${GIMME_GO_VERSION}")"; then
+			# Break our normal silence, this one really needs to be seen on stderr
+			# always; auditability and knowing what version of Go you got wins.
+			if [[ "${GIMME_GO_VERSION}" != "${resolved_sha}" ]]; then
 				warn "resolved '${GIMME_GO_VERSION}' to '${resolved_sha}'"
-				GIMME_GO_VERSION="${resolved_sha}"
 			fi
+			GIMME_TYPE=git
+			GIMME_GO_VERSION="${resolved_sha}"
 			return 0
 		fi
 	fi
@@ -879,10 +940,6 @@ if [[ "${GIMME_GO_VERSION}" == "stable" ]]; then
 	GIMME_GO_VERSION=$(_get_curr_stable)
 fi
 
-_assert_version_given "$@"
-
-((force_install)) && _wipe_version "${GIMME_GO_VERSION}"
-
 unset GOARCH
 unset GOBIN
 unset GOOS
@@ -890,6 +947,10 @@ unset GOPATH
 unset GOROOT
 unset CGO_ENABLED
 unset CC_FOR_TARGET
+
+readonly GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
+readonly GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
+readonly GIMME_BARE_REPO="${GIMME_VERSION_PREFIX}/common-go.git"
 
 mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 # The envs dir stays small and provides a record of what had been installed
@@ -899,8 +960,9 @@ mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 # the versions dir should be excluded from system backups.
 _exclude_from_backups "${GIMME_VERSION_PREFIX}"
 
-GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
-GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
+_assert_version_given "$@"
+
+((force_install)) && _wipe_version "${GIMME_GO_VERSION}"
 
 if ! case "${GIMME_TYPE}" in
 	binary) _try_existing binary || _try_binary "${GIMME_GO_VERSION}" "${GIMME_ARCH}" ;;
