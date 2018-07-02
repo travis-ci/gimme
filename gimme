@@ -611,16 +611,16 @@ _resolve_version() {
 	local base="${1%.x}"
 	local ver last='' known
 	known="$(_update_remote_known_list_if_needed)" # will be version-sorted
+	if [[ ! "${base}" =~ ^[0-9.]+$ ]]; then
+		warn "resolve pattern '${base}.x' invalid for .x finding"
+		return 2
+	fi
+	local search="^${base//./\\.}\\.[0-9.]+\$"
+	warn "search: '${search}'"
 	# avoid regexp attacks
 	while read -r ver; do
-		case "${ver}" in
-		${base})
-			last="${ver}"
-			;;
-		${base}.*)
-			last="${ver}"
-			;;
-		esac
+		[[ "${ver}" =~ $search ]] || continue
+		last="${ver}"
 	done <"$known"
 	if [[ -n "${last}" ]]; then
 		echo "${last}"
