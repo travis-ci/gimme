@@ -615,8 +615,8 @@ _resolve_version() {
 		warn "resolve pattern '${base}.x' invalid for .x finding"
 		return 2
 	fi
-	local search="^${base//./\\.}\\.[0-9.]+\$"
-	warn "search: '${search}'"
+	# The `.x` is optional; "1.10" matches "1.10.x"
+	local search="^${base//./\\.}(\\.[0-9.]+)?\$"
 	# avoid regexp attacks
 	while read -r ver; do
 		[[ "${ver}" =~ $search ]] || continue
