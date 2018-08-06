@@ -16,6 +16,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+## [1.5.1] - 2018-08-06
+
+### Fixed
+- Handle version strings like `1.x` correctly
+
 ## [1.5.0] - 2018-05-29
 
 ### Added
