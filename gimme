@@ -890,6 +890,8 @@ unset GOPATH
 unset GOROOT
 unset CGO_ENABLED
 unset CC_FOR_TARGET
+# GO111MODULE breaks build of Go itself
+unset GO111MODULE
 
 mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 # The envs dir stays small and provides a record of what had been installed
