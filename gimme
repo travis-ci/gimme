@@ -56,7 +56,7 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-readonly GIMME_VERSION="v1.5.0"
+readonly GIMME_VERSION="v1.5.1"
 readonly GIMME_COPYRIGHT="Copyright (c) 2015-2018 gimme contributors"
 readonly GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/${GIMME_VERSION}/LICENSE"
 export GIMME_VERSION
@@ -1019,6 +1019,8 @@ unset GOPATH
 unset GOROOT
 unset CGO_ENABLED
 unset CC_FOR_TARGET
+# GO111MODULE breaks build of Go itself
+unset GO111MODULE
 
 readonly GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
 readonly GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
