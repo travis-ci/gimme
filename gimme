@@ -327,8 +327,8 @@ _compile() {
 		export CC_FOR_TARGET="${GIMME_CC_FOR_TARGET}"
 
 		local make_log="${1}/make.${GOOS}.${GOARCH}.log"
-		if [[ "${GIMME_DEBUG}" -gt "1" ]]; then
-			./make.bash 2>&1 | tee "${make_log}" 1>&2 || return 1
+		if [[ "${GIMME_DEBUG}" -ge "2" ]]; then
+			./make.bash -v 2>&1 | tee "${make_log}" 1>&2 || return 1
 		else
 			./make.bash &>"${make_log}" || return 1
 		fi
