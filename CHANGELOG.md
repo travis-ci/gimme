@@ -16,6 +16,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+## [1.5.3] 2018-10-10
+- Add Go 1.11 support
+- Add support for Windows Subsystem for Linux (WSL)
+
 ## [1.5.2] 2018-08-15
 - Do not pass `GO111MODULE` on to the compiling process
 - Get verbose go build logs when `GIMME_DEBUG >= 2`
