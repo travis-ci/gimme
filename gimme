@@ -775,7 +775,7 @@ case "${GIMME_VERSION_PREFIX}" in
 	;;
 esac
 
-if [[ "${GIMME_OS}" == mingw* ]]; then
+case "${GIMME_OS}" in mingw* | msys_nt*)
 	# Minimalist GNU for Windows
 	GIMME_OS='windows'
 
@@ -784,7 +784,8 @@ if [[ "${GIMME_OS}" == mingw* ]]; then
 	else
 		GIMME_ARCH="amd64"
 	fi
-fi
+	;;
+esac
 
 force_install=0
 force_known_update=0
