@@ -226,16 +226,32 @@ _common_git() {
 	local -ar FETCH=(git -C "${git_bare}" fetch -q --all --tags --prune)
 	local -ar VERIFY=(git -C "${git_bare}" rev-parse -q --verify "${requested}^{object}")
 
+	# We use --mirror to create the bare repo, because we want all references to
+	# track upstream directly; this is our common reference repo, any checkouts are
+	# made by cloning this.
+
 	if [[ ! -d "${git_bare}" ]]; then
 		if [[ -d "${old_git_location}" ]]; then
 			# --dissociate is new enough that we can't rely upon it
-			git clone -q --bare --reference "${old_git_location}" "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
+			git clone -q --mirror --reference "${old_git_location}" "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
 			git -C "${git_bare}" repack -a -d -q
 			rm -f "${git_bare}/objects/info/alternates"
 		else
-			git clone -q --bare "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
+			git clone -q --mirror "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
 		fi
 		fetched=true
+	fi
+
+	# Earlier versions of this only used --bare, not --mirror; auto-repair the damage
+	local mirrored
+	if mirrored="$(git -C "${git_bare}" config --local --bool remote.origin.mirror)" && [[ "${mirrored}" == "true" ]]; then
+		true # all is good
+	else
+		warn "non-mirror '${git_bare}' detected, repairing ..."
+		git -C "${git_bare}" config --local remote.origin.fetch '+refs/*:refs/*'
+		git -C "${git_bare}" config --local --bool remote.origin.mirror true
+		git -C "${git_bare}" fetch
+		warn "repair complete"
 	fi
 
 	if [[ -z "${requested}" ]]; then
@@ -1050,7 +1066,7 @@ if ! case "${GIMME_TYPE}" in
 		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
 		exit 1
 		;;
-	esac; then
+	esac then
 	echo >&2 "I don't have any idea what to do with '${GIMME_GO_VERSION}'."
 	echo >&2 "  (using download type '${GIMME_TYPE}')"
 	exit 1
