@@ -1066,7 +1066,7 @@ if ! case "${GIMME_TYPE}" in
 		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
 		exit 1
 		;;
-	esac then
+	esac; then
 	echo >&2 "I don't have any idea what to do with '${GIMME_GO_VERSION}'."
 	echo >&2 "  (using download type '${GIMME_TYPE}')"
 	exit 1
