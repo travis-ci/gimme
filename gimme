@@ -56,7 +56,7 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-readonly GIMME_VERSION="v1.5.1"
+readonly GIMME_VERSION="v1.5.3"
 readonly GIMME_COPYRIGHT="Copyright (c) 2015-2018 gimme contributors"
 readonly GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/${GIMME_VERSION}/LICENSE"
 export GIMME_VERSION
@@ -343,7 +343,7 @@ _extract() {
 
 # _setup_bootstrap
 _setup_bootstrap() {
-	local versions=("1.10" "1.9" "1.8" "1.7" "1.6" "1.5" "1.4")
+	local versions=("1.11" "1.10" "1.9" "1.8" "1.7" "1.6" "1.5" "1.4")
 
 	# try existing
 	for v in "${versions[@]}"; do
@@ -385,8 +385,8 @@ _compile() {
 		export CC_FOR_TARGET="${GIMME_CC_FOR_TARGET}"
 
 		local make_log="${1}/make.${GOOS}.${GOARCH}.log"
-		if [[ "${GIMME_DEBUG}" -gt "1" ]]; then
-			./make.bash 2>&1 | tee "${make_log}" 1>&2 || return 1
+		if [[ "${GIMME_DEBUG}" -ge "2" ]]; then
+			./make.bash -v 2>&1 | tee "${make_log}" 1>&2 || return 1
 		else
 			./make.bash &>"${make_log}" || return 1
 		fi
@@ -904,7 +904,7 @@ case "${GIMME_VERSION_PREFIX}" in
 	;;
 esac
 
-if [[ "${GIMME_OS}" == mingw* ]]; then
+case "${GIMME_OS}" in mingw* | msys_nt*)
 	# Minimalist GNU for Windows
 	GIMME_OS='windows'
 
@@ -913,7 +913,8 @@ if [[ "${GIMME_OS}" == mingw* ]]; then
 	else
 		GIMME_ARCH="amd64"
 	fi
-fi
+	;;
+esac
 
 force_install=0
 force_known_update=0
