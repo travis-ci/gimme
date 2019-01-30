@@ -16,11 +16,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
-## [1.5.3] 2018-10-10
+## [1.5.3] - 2018-10-10
 - Add Go 1.11 support
 - Detect `msys_nt*` as Windows (git bash)
 
-## [1.5.2] 2018-08-15
+## [1.5.2] - 2018-08-15
 - Do not pass `GO111MODULE` on to the compiling process
 - Get verbose go build logs when `GIMME_DEBUG >= 2`
 
@@ -152,7 +152,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 - Initial release!
 
-[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/travis-ci/gimme/compare/v1.5.3...HEAD
+[1.5.3]: https://github.com/travis-ci/gimme/compare/v1.5.2...v1.5.3
+[1.5.2]: https://github.com/travis-ci/gimme/compare/v1.5.1...v1.5.2
+[1.5.1]: https://github.com/travis-ci/gimme/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/travis-ci/gimme/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/travis-ci/gimme/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/travis-ci/gimme/compare/v1.2.0...v1.3.0
