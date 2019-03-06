@@ -589,8 +589,8 @@ _resolve_version() {
 		_get_curr_stable
 		return 0
 		;;
-	previous)
-		_get_prev_stable
+	oldstable)
+		_get_old_stable
 		return 0
 		;;
 	tip)
@@ -650,14 +650,14 @@ _get_curr_stable() {
 	cat "${stable}"
 }
 
-_get_prev_stable() {
-	local previous="${GIMME_VERSION_PREFIX}/previous"
+_get_old_stable() {
+	local oldstable="${GIMME_VERSION_PREFIX}/oldstable"
 
-	if _file_older_than_secs "${previous}" 86400; then
-		_update_previous "${previous}"
+	if _file_older_than_secs "${oldstable}" 86400; then
+		_update_oldstable "${oldstable}"
 	fi
 
-	cat "${previous}"
+	cat "${oldstable}"
 }
 
 _update_stable() {
@@ -669,14 +669,14 @@ _update_stable() {
 	rm -f "${stable}.old"
 }
 
-_update_previous() {
-	local previous="${1}"
-	local prev_x
-	prev_x=$(_get_curr_stable | awk -F. '{
+_update_oldstable() {
+	local oldstable="${1}"
+	local oldstable_x
+	oldstable_x=$(_get_curr_stable | awk -F. '{
 		$2--;
 		print $1 "." $2 "." "x"
 	}')
-	_resolve_version "${prev_x}" >"${previous}"
+	_resolve_version "${oldstable_x}" >"${oldstable}"
 }
 
 _last_mod_timestamp() {
@@ -902,7 +902,7 @@ esac
 
 case "${GIMME_GO_VERSION}" in
 stable) GIMME_GO_VERSION=$(_get_curr_stable) ;;
-previous) GIMME_GO_VERSION=$(_get_prev_stable) ;;
+oldstable) GIMME_GO_VERSION=$(_get_old_stable) ;;
 esac
 
 _assert_version_given "$@"
