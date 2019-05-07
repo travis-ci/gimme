@@ -76,6 +76,12 @@ To install and use the current stable release of Go:
 gimme stable
 ```
 
+To install the previous minor release of Go:
+
+``` bash
+gimme oldstable
+```
+
 Or to install and use the development version (master branch) of Go:
 
 ``` bash
@@ -163,12 +169,14 @@ versions and point Gimme at that instead.
 
 Invoke `gimme -k` or `gimme --known` to have Gimme report the versions which
 can be installed; invoking `gimme stable` installs the version which the Go
-Maintainers have declared to be stable.  Both of these involve making
-network requests to retrieve this information, although the `--known` output
-is cached.  (Use `--force-known-update` to ignore the cache).
+Maintainers have declared to be stable, and `gimme oldstable` installs the last
+stable release one minor version before the current stable. Both of these
+involve making network requests to retrieve this information, although the
+`--known` output is cached.  (Use `--force-known-update` to ignore the cache).
 
 The `stable` request retrieves <https://golang.org/VERSION?m=text> and reports
-that.
+that. The `oldstable` request does the same and downgrades it by one minor
+version.
 
 The `known` request retrieves <https://golang.org/dl> and parses the page to
 find releases.  This is not the same as the location where the images are
@@ -187,10 +195,11 @@ available.
 To make this easier, and reduce duplicate invocations, Gimme now supports a
 "query" which, instead of producing normal output, just prints the resolution
 of a version specifier.  This is the `--resolve` option.  It handles the `.x`
-suffix and the `stable` string; all other inputs are passed through unchanged,
-although unknown names will be accompanied by an error message and an exit
-code of 2.  A valid version identifier, even if not currently downloadable
-from upstream, will resolve successfully.  "Can resolve" is not "exists".
+suffix, the `stable` string, and the `oldstable` string; all other inputs are
+passed through unchanged, although unknown names will be accompanied by an
+error message and an exit code of 2.  A valid version identifier, even if not
+currently downloadable from upstream, will resolve successfully.  "Can resolve"
+is not "exists".
 
 Thus given a list of versions to invoke against, tooling might do a first pass
 to use `--resolve` on each and de-duplicate, so that if an alias and a
