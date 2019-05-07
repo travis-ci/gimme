@@ -1,5 +1,4 @@
 language: bash
-sudo: false
 dist: trusty
 os:
 - linux
