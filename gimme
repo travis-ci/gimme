@@ -520,9 +520,12 @@ _list_versions() {
 	fi
 
 	local current_version
-	current_version="$(go env GOROOT 2>/dev/null)"
-	current_version="${current_version##*/go}"
-	current_version="${current_version%%.${GIMME_OS}.*}"
+
+	if command -v go &>/dev/null; then
+		current_version="$(go env GOROOT 2>/dev/null)"
+		current_version="${current_version##*/go}"
+		current_version="${current_version%%.${GIMME_OS}.*}"
+	fi
 
 	# 1.1 1.10 1.2 is bad; zsh has `setopt numeric_glob_sort` but bash
 	# doesn't appear to have anything like that.
