@@ -355,11 +355,21 @@ EOF
 
 # _env "dir"
 _env() {
+	if [[ -d "${1}/bin" && -f "${1}/bin/go.exe" && "$GIMME_HOSTOS" == windows ]] && command -v cygpath &>/dev/null; then
+		# .exe's don't come in from the .zip with the executable flag set
+		chmod +x "${1}/bin/"*.exe
+		# $1 is a cygwin/msys path, but GOROOT needs a Windows path
+		local -x GOROOT
+		GOROOT="$(cygpath -wa "$1")"
+	else
+		local -x GOROOT="$1"
+	fi
+
 	[[ -d "${1}/bin" && -x "${1}/bin/go" ]] || return 1
 
 	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
 	# automatically
-	GOROOT="${1}" "${1}/bin/go" version &>/dev/null || return 1
+	"${1}/bin/go" version &>/dev/null || return 1
 
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
@@ -370,18 +380,19 @@ _env() {
 	#   Tools like `gimme` are the reason that GOROOT-in-env exists.
 
 	echo
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" ]]; then
+	if [[ "$("${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" ]]; then
 		echo 'unset GOOS;'
 	else
 		echo 'export GOOS="'"${GIMME_OS}"'";'
 	fi
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
+	if [[ "$("${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
 		echo 'unset GOARCH;'
 	else
 		echo 'export GOARCH="'"${GIMME_ARCH}"'";'
 	fi
 
-	echo "export GOROOT='${1}';"
+	# GOROOT on Windows can contain \, so ensure it is shell-quoted
+	printf 'export GOROOT=%q;\n' "$GOROOT"
 
 	# shellcheck disable=SC2016
 	echo 'export PATH="'"${1}/bin"':${PATH}";'
@@ -393,12 +404,20 @@ _env() {
 
 # _env_alias "dir" "env-file"
 _env_alias() {
+	if [[ "$GIMME_HOSTOS" == windows ]] && command -v cygpath &>/dev/null; then
+		# $1 is a cygwin/msys path, but GOROOT needs a Windows path
+		local -x GOROOT
+		GOROOT="$(cygpath -wa "$1")"
+	else
+		local -x GOROOT="$1"
+	fi
+
 	if [[ "${GIMME_NO_ENV_ALIAS}" ]]; then
 		echo "${2}"
 		return
 	fi
 
-	if [[ "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" && "$(GOROOT="${1}" "${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
+	if [[ "$("${1}/bin/go" env GOHOSTOS)" == "${GIMME_OS}" && "$("${1}/bin/go" env GOHOSTARCH)" == "${GIMME_ARCH}" ]]; then
 		# GIMME_GO_VERSION might be a branch, which can contain '/'
 		local dest="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION//\//__}.env"
 		cp "${2}" "${dest}"
@@ -799,7 +818,7 @@ case "${GIMME_VERSION_PREFIX}" in
 	;;
 esac
 
-case "${GIMME_OS}" in mingw* | msys_nt*)
+case "${GIMME_OS}" in mingw* | msys_nt* | cygwin_nt-*)
 	# Minimalist GNU for Windows
 	GIMME_OS='windows'
 
@@ -807,6 +826,18 @@ case "${GIMME_OS}" in mingw* | msys_nt*)
 		GIMME_ARCH="386"
 	else
 		GIMME_ARCH="amd64"
+	fi
+	;;
+esac
+
+case "${GIMME_HOSTOS}" in mingw* | msys_nt* | cygwin_nt-*)
+	# Minimalist GNU for Windows
+	GIMME_HOSTOS='windows'
+
+	if [ "${GIMME_HOSTARCH}" = 'i686' ]; then
+		GIMME_HOSTARCH="386"
+	else
+		GIMME_HOSTARCH="amd64"
 	fi
 	;;
 esac
