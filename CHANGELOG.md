@@ -16,6 +16,11 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Security
 
+## [1.5.4]
+- Add support for Go 1.12, 1.13, 1.14
+- Add `oldstable` support
+- Fix `gimme X` when `$GOFLAGS` is set to a bad value
+
 ## [1.5.3] - 2018-10-10
 - Add Go 1.11 support
 - Detect `msys_nt*` as Windows (git bash)
