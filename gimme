@@ -359,7 +359,7 @@ _env() {
 
 	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
 	# automatically
-	GOROOT="${1}" "${1}/bin/go" version &>/dev/null || return 1
+	GOROOT="${1}" GOFLAGS="" "${1}/bin/go" version &>/dev/null || return 1
 
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
