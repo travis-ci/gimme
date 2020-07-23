@@ -545,7 +545,7 @@ _update_remote_known_list_if_needed() {
 	local list="${GIMME_VERSION_PREFIX}/known-versions.txt"
 	local dlfile="${GIMME_TMP}/known-dl"
 
-	if [[ -e "${list}" ]] &&
+	if [[ -s "${list}" ]] &&
 		! ((force_known_update)) &&
 		! _file_older_than_secs "${list}" "${GIMME_KNOWN_CACHE_MAX}"; then
 		echo "${list}"
