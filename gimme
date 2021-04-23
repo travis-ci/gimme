@@ -54,8 +54,8 @@ set -o pipefail
 
 [[ ${GIMME_DEBUG} ]] && set -x
 
-readonly GIMME_VERSION="v1.5.3"
-readonly GIMME_COPYRIGHT="Copyright (c) 2015-2018 gimme contributors"
+readonly GIMME_VERSION="v1.5.4"
+readonly GIMME_COPYRIGHT="Copyright (c) 2015-2020 gimme contributors"
 readonly GIMME_LICENSE_URL="https://raw.githubusercontent.com/travis-ci/gimme/${GIMME_VERSION}/LICENSE"
 export GIMME_VERSION
 export GIMME_COPYRIGHT
@@ -285,7 +285,7 @@ _extract() {
 
 # _setup_bootstrap
 _setup_bootstrap() {
-	local versions=("1.14" "1.13" "1.12" "1.11" "1.10" "1.9" "1.8" "1.7" "1.6" "1.5" "1.4")
+	local versions=("1.16" "1.15" "1.14" "1.13" "1.12" "1.11" "1.10" "1.9" "1.8" "1.7" "1.6" "1.5" "1.4")
 
 	# try existing
 	for v in "${versions[@]}"; do
@@ -369,7 +369,7 @@ _env() {
 
 	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
 	# automatically
-	"${1}/bin/go" version &>/dev/null || return 1
+	GOFLAGS="" "${1}/bin/go" version &>/dev/null || return 1
 
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
@@ -804,7 +804,7 @@ _to_goarch() {
 : "${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}"
 : "${GIMME_TYPE:=auto}" # 'auto', 'binary', 'source', or 'git'
 : "${GIMME_BINARY_OSX:=osx10.8}"
-: "${GIMME_DOWNLOAD_BASE:=https://storage.googleapis.com/golang}"
+: "${GIMME_DOWNLOAD_BASE:=https://dl.google.com/go}"
 : "${GIMME_LIST_KNOWN:=https://golang.org/dl}"
 : "${GIMME_KNOWN_CACHE_MAX:=10800}"
 

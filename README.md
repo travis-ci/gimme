@@ -1,4 +1,4 @@
-# gimme [![Build Status](https://travis-ci.org/travis-ci/gimme.svg?branch=master)](https://travis-ci.org/travis-ci/gimme)
+# gimme [![Build Status](https://travis-ci.com/travis-ci/gimme.svg?branch=master)](https://travis-ci.com/travis-ci/gimme)
 
 Install go, yay!
 
