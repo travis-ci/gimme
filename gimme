@@ -357,7 +357,7 @@ EOF
 _env() {
 	if [[ -d "${1}/bin" && -f "${1}/bin/go.exe" && "$GIMME_HOSTOS" == windows ]] && command -v cygpath &>/dev/null; then
 		# .exe's don't come in from the .zip with the executable flag set
-		chmod +x "${1}/bin/"*.exe
+		chmod +x "${1}/bin/"*.exe "$1/pkg/tool/*/*.exe"
 		# $1 is a cygwin/msys path, but GOROOT needs a Windows path
 		local -x GOROOT
 		GOROOT="$(cygpath -wa "$1")"
