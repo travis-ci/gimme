@@ -700,10 +700,12 @@ _get_module() {
 	if [[ ! -f "${GIMME_MODULE_PREFIX}go.mod" ]]; then
 		die 'not a module'
 	fi
-	if ! grep '^go' "${GIMME_MODULE_PREFIX}go.mod" >/dev/null; then
+	local version
+	version="$(awk '$1 == "go" { print $2 ".x"; exit }' "${GIMME_MODULE_PREFIX}go.mod")"
+	if [ -z "$version" ]; then
 		die 'module has no go directive'
 	fi
-	_resolve_version "$(grep '^go' "${GIMME_MODULE_PREFIX}go.mod" | awk '{ print $2 }').x"
+	_resolve_version "$version"
 }
 
 _file_older_than_secs() {
