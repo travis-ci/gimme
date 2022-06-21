@@ -44,6 +44,7 @@
 #+     GIMME_DOWNLOAD_BASE - override base URL dir for download (default '${GIMME_DOWNLOAD_BASE}')
 #+        GIMME_LIST_KNOWN - override base URL for known go versions (default '${GIMME_LIST_KNOWN}')
 #+   GIMME_KNOWN_CACHE_MAX - seconds the cache for --known is valid for (default '${GIMME_KNOWN_CACHE_MAX}')
+#+     GIMME_MODULE_PREFIX - directory prefix for go.mod file in 'module' mode (default './')
 #+  -
 #
 set -e
@@ -597,6 +598,10 @@ _resolve_version() {
 		echo "tip"
 		return 0
 		;;
+	module)
+		_get_module
+		return 0
+		;;
 	*.x)
 		true
 		;;
@@ -689,6 +694,18 @@ _last_mod_timestamp() {
 		stat -c %Y "${filename}"
 		;;
 	esac
+}
+
+_get_module() {
+	if [[ ! -f "${GIMME_MODULE_PREFIX}go.mod" ]]; then
+		die 'not a module'
+	fi
+	local version
+	version="$(awk '$1 == "go" { print $2 ".x"; exit }' "${GIMME_MODULE_PREFIX}go.mod")"
+	if [ -z "$version" ]; then
+		die 'module has no go directive'
+	fi
+	_resolve_version "$version"
 }
 
 _file_older_than_secs() {
@@ -903,6 +920,7 @@ esac
 case "${GIMME_GO_VERSION}" in
 stable) GIMME_GO_VERSION=$(_get_curr_stable) ;;
 oldstable) GIMME_GO_VERSION=$(_get_old_stable) ;;
+module) GIMME_GO_VERSION=$(_resolve_version module) ;;
 esac
 
 _assert_version_given "$@"

@@ -18,6 +18,7 @@ env:
   - PATH="${HOME}/bin:${PATH}"
   - SHELLCHECK_URL="https://www.googleapis.com/download/storage/v1/b/shellcheck/o/shellcheck-v0.4.7.linux.x86_64.tar.xz?alt=media"
   - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_amd64"
+  - GIMME_MODULE_PREFIX='.testdata/'
   matrix:
   - TARGET=native GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
   - TARGET=arm GO_VERSIONS="master"
