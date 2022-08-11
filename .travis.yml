@@ -37,7 +37,7 @@ matrix:
     addons:
       apt:
         packages:
-          - gcc-aarch64-linux-gnu
+          - gcc-arm-linux-gnueabi
           - libc6-dev-arm64-cross
   - env:
       TARGET: "arm64"
