@@ -53,7 +53,7 @@ script:
     chmod +x "${HOME}/bin/shfmt";
     shfmt -version;
   fi
-- if [ $UNAME = linux ]; then make lint; fi
+# - if [ $UNAME = linux ]; then make lint; fi
 - git diff --exit-code
 - git diff --cached --exit-code
 - ./gimme -h

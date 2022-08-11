@@ -31,7 +31,7 @@ can_resolve_version() {
 	local ev r
 	ev=0
 	r="$(./gimme --resolve "${want}" 2>/dev/null)" || ev=$?
-	if ! [[ -n "${r}" ]]; then
+	if [[ -z "${r}" ]]; then
 		die "no output resolving input version '${want}'"
 	fi
 	case $ev in

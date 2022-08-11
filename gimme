@@ -176,7 +176,7 @@ _binary() {
 		# attempt "armv6l" vs just "arm" first (since that's what's officially published)
 		urls=(
 			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}v6l.tar.gz" # go1.6beta2 & go1.6rc1
-			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}6.tar.gz" # go1.6beta1
+			"${GIMME_DOWNLOAD_BASE}/go${version}.${GIMME_OS}-${arch}6.tar.gz"   # go1.6beta1
 			"${urls[@]}"
 		)
 	fi
@@ -522,13 +522,13 @@ _list_versions() {
 	local current_version
 	current_version="$(go env GOROOT 2>/dev/null)"
 	current_version="${current_version##*/go}"
-	current_version="${current_version%%.${GIMME_OS}.*}"
+	current_version="${current_version%%."$GIMME_OS".*}"
 
 	# 1.1 1.10 1.2 is bad; zsh has `setopt numeric_glob_sort` but bash
 	# doesn't appear to have anything like that.
 	for d in "${GIMME_VERSION_PREFIX}/go"*".${GIMME_OS}."*; do
 		local cleaned="${d##*/go}"
-		cleaned="${cleaned%%.${GIMME_OS}.*}"
+		cleaned="${cleaned%%."$GIMME_OS".*}"
 		echo "${cleaned}"
 	done | _version_sort | while read -r cleaned; do
 		echo -en "${cleaned}"
@@ -940,7 +940,7 @@ if ! case "${GIMME_TYPE}" in
 		echo >&2 "  Try 'auto', 'binary', 'source', or 'git'."
 		exit 1
 		;;
-	esac; then
+	esac then
 	echo >&2 "I don't have any idea what to do with '${GIMME_GO_VERSION}'."
 	echo >&2 "  (using download type '${GIMME_TYPE}')"
 	exit 1
