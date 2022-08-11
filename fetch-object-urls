@@ -13,14 +13,13 @@ from urllib.parse import quote as urlquote
 
 DEFAULT_BASE_URL = 'https://www.googleapis.com/storage/v1/b/golang/o'
 
-
 def main():
     for self_link in _fetch_links():
         print(self_link)
     return 0
 
 
-def _fetch_links(base_url=DEFAULT_BASE_URL, max_fetch=5):
+def _fetch_links(base_url=DEFAULT_BASE_URL, max_fetch=20):
     n_fetch = 1
     first_page = _fetch_page(base_url=base_url)
     for self_link in _page_self_links(first_page):
