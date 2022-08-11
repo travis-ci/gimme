@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # vim:noexpandtab:ts=2:sw=2:
-
+set -x
 set -e
 set -o pipefail
 
