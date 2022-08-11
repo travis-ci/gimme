@@ -34,6 +34,11 @@ matrix:
       SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_arm"
       SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
     arch: arm64
+    addons:
+      apt:
+        packages:
+          - gcc-aarch64-linux-gnu
+          - libc6-dev-arm64-cross
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
@@ -53,7 +58,7 @@ script:
     chmod +x "${HOME}/bin/shfmt";
     shfmt -version;
   fi
-# - if [ $UNAME = linux ]; then make lint; fi
+- if [ $UNAME = linux ]; then make lint; fi
 - git diff --exit-code
 - git diff --cached --exit-code
 - ./gimme -h

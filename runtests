@@ -91,9 +91,11 @@ _test_arm64() {
 		fi
 		if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cgo=1; else cgo=0; fi
 		echo "---> eval \$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme $v)"
+		check_GOOS=$(go env GOOS)
+		check_GOARCH=$(go env GOARCH)
 		(
 			eval "$(GIMME_OS=linux GIMME_ARCH=arm64 GIMME_CGO_ENABLED=$cgo ./gimme "${v}")"
-			[[ "$(go env GOOS)" == 'linux' && "$(go env GOARCH)" == 'arm64' ]] || exit 1
+			[[ "$check_GOOS" == 'linux' && "$check_GOARCH" == 'arm64' ]] || exit 1
 		) || exit 1
 	done
 }
