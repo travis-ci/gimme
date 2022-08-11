@@ -22,6 +22,12 @@ matrix:
   - env:
       TARGET: "native"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
+    addons:
+      apt:
+        packages:
+        # install cross compilers for cgo support.
+        - gcc-aarch64-linux-gnu
+        - libc6-dev-arm64-cross
   - env:
       TARGET: "arm"
       GO_VERSIONS: "master"
@@ -30,12 +36,6 @@ matrix:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
     arch: arm64
-addons:
-  apt:
-    packages:
-    # install cross compilers for cgo support.
-    - gcc-aarch64-linux-gnu
-    - libc6-dev-arm64-cross
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
