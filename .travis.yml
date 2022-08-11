@@ -16,12 +16,12 @@ env:
   - GO_BOOTSTRAP_VERSION=1.8.3
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
-  - SHELLCHECK_URL="https://www.googleapis.com/download/storage/v1/b/shellcheck/o/shellcheck-v0.4.7.linux.x86_64.tar.xz?alt=media"
-  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_amd64"
 matrix:
   - env:
       TARGET: "native"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_amd64"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz"
     addons:
       apt:
         packages:
@@ -31,10 +31,14 @@ matrix:
   - env:
       TARGET: "arm"
       GO_VERSIONS: "master"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_arm"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
     arch: arm64
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_arm"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
     arch: arm64
 before_script:
 - mkdir -p "${GIMME_TMP}"
