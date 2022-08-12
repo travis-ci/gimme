@@ -20,7 +20,7 @@ matrix:
   - env:
       TARGET: "native"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_amd64"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v3.5.1/shfmt_v3.5.1_linux_amd64"
       SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz"
     addons:
       apt:
@@ -31,7 +31,7 @@ matrix:
   - env:
       TARGET: "arm"
       GO_VERSIONS: "master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_arm"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v3.5.1/shfmt_v3.5.1_linux_arm"
       SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
     arch: arm64
     addons:
@@ -42,7 +42,7 @@ matrix:
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_arm"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v3.5.1/shfmt_v3.5.1_linux_arm"
       SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
     arch: arm64
     addons:
@@ -58,7 +58,7 @@ script:
     tar -C "${HOME}/bin" --exclude="*.txt" --strip-components=1 -xf "${GIMME_TMP}/shellcheck.tar.xz";
     shellcheck --version;
   fi
-- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v2.2.0 ]] ; then
+- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v3.5.1 ]] ; then
     curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt";
     chmod +x "${HOME}/bin/shfmt";
     shfmt -version;
