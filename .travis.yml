@@ -45,6 +45,11 @@ matrix:
       SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_arm"
       SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
     arch: arm64
+    addons:
+      apt:
+        packages:
+          - gcc-arm-linux-gnueabi
+          - libc6-dev-arm64-cross
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
