@@ -15,7 +15,7 @@ env:
   - SHCHK_VERSION="v0.8.0"
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_BOOTSTRAP_VERSION=1.8.3
+  - GO_BOOTSTRAP_VERSION=1.18.6
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
 matrix:
