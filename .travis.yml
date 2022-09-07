@@ -73,4 +73,4 @@ script:
 - ./gimme -h
 - ./gimme -V
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
-- ./gimme -l
+- 'command -v go && (./gimme -l) || (./gimme "master"; ./gimme -l)'
