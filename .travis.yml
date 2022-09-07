@@ -11,6 +11,8 @@ cache:
 # osx_image: xcode7.3
 env:
   global:
+  - SHFMT_VERSION="v3.5.1"
+  - SHCHK_VERSION="v0.8.0"
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
   - GO_BOOTSTRAP_VERSION=1.8.3
@@ -20,8 +22,8 @@ matrix:
   - env:
       TARGET: "native"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v3.5.1/shfmt_v3.5.1_linux_amd64"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.x86_64.tar.xz"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.x86_64.tar.xz"
     addons:
       apt:
         packages:
@@ -31,8 +33,8 @@ matrix:
   - env:
       TARGET: "arm"
       GO_VERSIONS: "master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v3.5.1/shfmt_v3.5.1_linux_arm"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_arm"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.armv6hf.tar.xz"
     arch: arm64
     addons:
       apt:
@@ -42,8 +44,8 @@ matrix:
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/v3.5.1/shfmt_v3.5.1_linux_arm"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/v0.8.0/shellcheck-v0.8.0.linux.armv6hf.tar.xz"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_arm"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.armv6hf.tar.xz"
     arch: arm64
     addons:
       apt:
@@ -53,7 +55,7 @@ matrix:
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
-- if [ $UNAME = linux ] && [[ $(shellcheck --version | awk '/^version:/ { print $2 }') != 0.4.7 ]] ; then
+- if [ $UNAME = linux ] && [[ "$(shellcheck --version | awk '/^version:/ { print $2 }')" != "$SHCHK_VERSION" ]] ; then
     curl -sSL -o "${GIMME_TMP}/shellcheck.tar.xz" "${SHELLCHECK_URL}";
     tar -C "${HOME}/bin" --exclude="*.txt" --strip-components=1 -xf "${GIMME_TMP}/shellcheck.tar.xz";
     shellcheck --version;
