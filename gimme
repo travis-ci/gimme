@@ -515,6 +515,7 @@ _wipe_version() {
 }
 
 _list_versions() {
+	set -x
 	if [ ! -d "${GIMME_VERSION_PREFIX}" ]; then
 		return 0
 	fi
@@ -537,6 +538,7 @@ _list_versions() {
 		fi
 		echo
 	done
+	set +x
 }
 
 _update_remote_known_list_if_needed() {
