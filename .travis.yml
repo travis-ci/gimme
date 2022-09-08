@@ -18,12 +18,12 @@ env:
   - GO_BOOTSTRAP_VERSION=1.18.6
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
+  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+  - SHELLCHECK_URL="https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.x86_64.tar.xz"
 matrix:
   - env:
       TARGET: "native"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.x86_64.tar.xz"
     addons:
       apt:
         packages:
@@ -33,9 +33,6 @@ matrix:
   - env:
       TARGET: "arm"
       GO_VERSIONS: "master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.x86_64.tar.xz"
-      GIMME_DEBUG: "true"
     addons:
       apt:
         packages:
@@ -44,10 +41,7 @@ matrix:
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_arm"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.armv6hf.tar.xz"
       GIMME_DEBUG: "true"
-    arch: arm64
     addons:
       apt:
         packages:
@@ -73,7 +67,7 @@ script:
 - ./gimme -V
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
 - ls -la "$HOME/.gimme/envs/"
-- 'command -v go || (if [[ -z "$GIMME_ENV_PREFIX" ]]; then source "$GIMME_ENV_PREFIX/latest.env"; else source "$HOME/.gimme/envs/latest.env"; fi)'
-- go version
-- go env
+#- 'command -v go || (if [[ -z "$GIMME_ENV_PREFIX" ]]; then source "$GIMME_ENV_PREFIX/latest.env"; else source "$HOME/.gimme/envs/latest.env"; fi)'
+#- go version
+#- go env
 - ./gimme -l
