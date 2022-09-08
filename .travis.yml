@@ -33,8 +33,8 @@ matrix:
   - env:
       TARGET: "arm"
       GO_VERSIONS: "master"
-      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_arm"
-      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.armv6hf.tar.xz"
+      SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+      SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.x86_64.tar.xz"
       GIMME_DEBUG: "true"
     addons:
       apt:
