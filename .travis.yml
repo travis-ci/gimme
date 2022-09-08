@@ -41,15 +41,16 @@ matrix:
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
-      GIMME_CC_FOR_TARGET: "arm-linux-gnueabi-gcc"
+      GIMME_CC_FOR_TARGET: "aarch64-linux-gnueabi-gcc"
       #GIMME_CC_FOR_TARGET: "libc6-dev-arm64-cross"
       GIMME_DEBUG: "true"
     addons:
       apt:
         packages:
-          - gcc-arm-linux-gnueabi
-          - binutils-arm-linux-gnueabi
+          - gcc-aarch64-linux-gnueabi
+          - binutils-aarch64-linux-gnueabi
           - libc6-dev-arm64-cross
+
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
