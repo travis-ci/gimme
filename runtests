@@ -14,6 +14,8 @@ main() {
 	echo "---> using bootstrap version ${go_bootstrap_version}"
 	./gimme "${go_bootstrap_version}"
 
+	source $GIMME_ENV
+
 	# Check that bootstrap version of go has been installed
 	go version
 	go env
