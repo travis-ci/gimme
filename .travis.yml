@@ -72,6 +72,7 @@ script:
 - git diff --cached --exit-code
 - ./gimme -h
 - ./gimme -V
+- if [[ -z "$GIMME_ENV_PREFIX" ]]; then source "$GIMME_ENV_PREFIX/latest.env"; else source "$HOME/.gimme/envs/latest.env"; fi
 - go version
 - go env
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
