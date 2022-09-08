@@ -41,6 +41,7 @@ matrix:
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
+      GIMME_CC_FOR_TARGET: "libc6-dev-arm64-cross"
       GIMME_DEBUG: "true"
     addons:
       apt:
