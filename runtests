@@ -13,27 +13,7 @@ main() {
 
 	echo "---> using bootstrap version ${go_bootstrap_version}"
 	# Installs the go version specified as go bootstrap version
-	./gimme "${go_bootstrap_version}"
-
-	# Trying to source the env file of the downloaded
-	# go bootstrap version, that will set GOROOT and
-	# other env vars.
-	if [[ -z "$GIMME_ENV" ]]; then
-		if [[ -z "$GIMME_ENV_PREFIX" ]]; then
-			# shellcheck source=/dev/null
-			source "$HOME/.gimme/envs/latest.env"
-		else
-			# shellcheck source=/dev/null
-			source "$GIMME_ENV_PREFIX/latest.env"
-		fi
-	else
-		# shellcheck source=/dev/null
-		source "$GIMME_ENV"
-	fi
-
-	# Check that bootstrap version of go has been installed
-	go version
-	go env
+	eval "$(./gimme "${go_bootstrap_version}")"
 
 	"_test_${target}" "$@"
 }
