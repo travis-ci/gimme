@@ -12,7 +12,11 @@ main() {
 	sanity_checks "$@"
 
 	echo "---> using bootstrap version ${go_bootstrap_version}"
-	eval "$(./gimme "${go_bootstrap_version}")"
+	./gimme "${go_bootstrap_version}"
+
+	# Check that bootstrap version of go has been installed
+	go version
+	go env
 
 	"_test_${target}" "$@"
 }
