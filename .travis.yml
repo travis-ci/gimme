@@ -36,7 +36,6 @@ matrix:
       SHFMT_URL: "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_arm"
       SHELLCHECK_URL: "https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.armv6hf.tar.xz"
       GIMME_DEBUG: "true"
-    arch: arm64
     addons:
       apt:
         packages:
