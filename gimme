@@ -360,10 +360,6 @@ EOF
 _env() {
 	[[ -d "${1}/bin" && -x "${1}/bin/go" ]] || return 1
 
-	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
-	# automatically
-	GOROOT="${1}" GOFLAGS="" "${1}/bin/go" version &>/dev/null || return 1
-
 	# https://twitter.com/davecheney/status/431581286918934528
 	# we have to GOROOT sometimes because we use official release binaries in unofficial locations :(
 	#
@@ -392,6 +388,10 @@ _env() {
 		echo 'go version >&2;'
 	fi
 	echo
+	
+	# if we try to run a Darwin binary on Linux, we need to fail so 'auto' can fallback to cross-compiling from source
+	# automatically
+	GOROOT="${1}" GOFLAGS="" "${1}/bin/go" version &>/dev/null || return 1
 }
 
 #############################################################################
