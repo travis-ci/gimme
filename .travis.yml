@@ -11,32 +11,53 @@ cache:
 # osx_image: xcode7.3
 env:
   global:
+  - SHFMT_VERSION="v3.5.1"
+  - SHCHK_VERSION="v0.8.0"
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_BOOTSTRAP_VERSION=1.8.3
+  - GO_BOOTSTRAP_VERSION=1.18.6
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
-  - SHELLCHECK_URL="https://www.googleapis.com/download/storage/v1/b/shellcheck/o/shellcheck-v0.4.7.linux.x86_64.tar.xz?alt=media"
-  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/v2.2.0/shfmt_v2.2.0_linux_amd64"
-  matrix:
-  - TARGET=native GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
-  - TARGET=arm GO_VERSIONS="master"
-  - TARGET=arm64 GO_VERSIONS="$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
-addons:
-  apt:
-    packages:
-    # install cross compilers for cgo support.
-    - gcc-aarch64-linux-gnu
-    - libc6-dev-arm64-cross
+  - SHFMT_URL="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
+  - SHELLCHECK_URL="https://github.com/koalaman/shellcheck/releases/download/${SHCHK_VERSION}/shellcheck-${SHCHK_VERSION}.linux.x86_64.tar.xz"
+matrix:
+  - env:
+      TARGET: "native"
+      GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) $(sed -n -e '/^[^#]/p' < .testdata/source-$UNAME)"
+    addons:
+      apt:
+        packages:
+        # install cross compilers for cgo support.
+        - gcc-arm-linux-gnueabi
+        - libc6-dev-arm64-cross
+  - env:
+      TARGET: "arm"
+      GO_VERSIONS: "master"
+    addons:
+      apt:
+        packages:
+          # install cross compilers for cgo support.
+          - gcc-arm-linux-gnueabi
+          - libc6-dev-arm64-cross
+  - env:
+      TARGET: "arm64"
+      GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
+      GIMME_DEBUG: "true"
+    addons:
+      apt:
+        packages:
+          # install cross compilers for cgo support.
+          - gcc-arm-linux-gnueabi
+          - libc6-dev-arm64-cross
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
-- if [ $UNAME = linux ] && [[ $(shellcheck --version | awk '/^version:/ { print $2 }') != 0.4.7 ]] ; then
+- if [ $UNAME = linux ] && [[ "$(shellcheck --version | awk '/^version:/ { print $2 }')" != "$SHCHK_VERSION" ]] ; then
     curl -sSL -o "${GIMME_TMP}/shellcheck.tar.xz" "${SHELLCHECK_URL}";
     tar -C "${HOME}/bin" --exclude="*.txt" --strip-components=1 -xf "${GIMME_TMP}/shellcheck.tar.xz";
     shellcheck --version;
   fi
-- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v2.2.0 ]] ; then
+- if [ $UNAME = linux ] && [[ $(shfmt -version 2>/dev/null) != v3.5.1 ]] ; then
     curl -sSL "${SHFMT_URL}" -o "${HOME}/bin/shfmt";
     chmod +x "${HOME}/bin/shfmt";
     shfmt -version;
@@ -47,4 +68,5 @@ script:
 - ./gimme -h
 - ./gimme -V
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
+- ls -la "$HOME/.gimme/envs/"
 - ./gimme -l
