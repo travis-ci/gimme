@@ -28,7 +28,7 @@ matrix:
       apt:
         packages:
         # install cross compilers for cgo support.
-        - gcc-aarch64-linux-gnu
+        - gcc-arm-linux-gnueabi
         - libc6-dev-arm64-cross
   - env:
       TARGET: "arm"
@@ -36,19 +36,19 @@ matrix:
     addons:
       apt:
         packages:
+          # install cross compilers for cgo support.
           - gcc-arm-linux-gnueabi
           - libc6-dev-arm64-cross
   - env:
       TARGET: "arm64"
       GO_VERSIONS: "$(sed -n -e '/^[^#]/p' < .testdata/sample-binary-$UNAME) master"
-      #GIMME_CC_FOR_TARGET: "libc6-dev-arm64-cross"
       GIMME_DEBUG: "true"
     addons:
       apt:
         packages:
+          # install cross compilers for cgo support.
           - gcc-arm-linux-gnueabi
           - libc6-dev-arm64-cross
-
 before_script:
 - mkdir -p "${GIMME_TMP}"
 script:
@@ -69,7 +69,4 @@ script:
 - ./gimme -V
 - ./runtests "${TARGET}" "${GO_BOOTSTRAP_VERSION}" ${GO_VERSIONS}
 - ls -la "$HOME/.gimme/envs/"
-#- 'command -v go || (if [[ -z "$GIMME_ENV_PREFIX" ]]; then source "$GIMME_ENV_PREFIX/latest.env"; else source "$HOME/.gimme/envs/latest.env"; fi)'
-#- go version
-#- go env
 - ./gimme -l
