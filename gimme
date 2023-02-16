@@ -520,7 +520,7 @@ _list_versions() {
 	fi
 
 	local current_version
-	current_version="$(go env GOROOT 2>/dev/null)"
+	current_version="$(go env GOROOT 2>/dev/null || true)"
 	current_version="${current_version##*/go}"
 	current_version="${current_version%%.${GIMME_OS}.*}"
 
