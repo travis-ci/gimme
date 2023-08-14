@@ -662,10 +662,10 @@ _get_old_stable() {
 
 _update_stable() {
 	local stable="${1}"
-	local url="https://golang.org/VERSION?m=text"
+	local url="https://go.dev/VERSION?m=text"
 
 	_do_curl "${url}" "${stable}"
-	sed -i.old -e 's/^go\(.*\)/\1/' "${stable}"
+	sed -i.old -e '1s/^go\([0-9.]*\)/\1/' -e '2,$d' "${stable}"
 	rm -f "${stable}.old"
 }
 
