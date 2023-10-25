@@ -13,7 +13,7 @@ env:
   global:
   - GIMME_TMP="${TRAVIS_BUILD_DIR}/tmp"
   - UNAME="$(uname | tr '[:upper:]' '[:lower:]')"
-  - GO_BOOTSTRAP_VERSION=1.8.3
+  - GO_BOOTSTRAP_VERSION=1.20.6
   - GOPATH="${HOME}/gopath"
   - PATH="${HOME}/bin:${PATH}"
   - SHELLCHECK_URL="https://www.googleapis.com/download/storage/v1/b/shellcheck/o/shellcheck-v0.4.7.linux.x86_64.tar.xz?alt=media"
