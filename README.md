@@ -82,6 +82,12 @@ To install the previous minor release of Go:
 gimme oldstable
 ```
 
+To install the most recent patch of relase specified in the go.mod file:
+
+```
+gimme module
+```
+
 Or to install and use the development version (master branch) of Go:
 
 ``` bash
