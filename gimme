@@ -20,6 +20,7 @@
 #+        -k --known known - list known go versions and exit
 #+    --force-known-update - when used with --known, ignores the cache and updates
 #+    -r --resolve resolve - resolve a version specifier to a version, show that and exit
+#+           --clean clean - remove cached (git) builds not used recently
 #+  -
 #+  Influential env vars:
 #+  -
@@ -44,6 +45,7 @@
 #+     GIMME_DOWNLOAD_BASE - override base URL dir for download (default '${GIMME_DOWNLOAD_BASE}')
 #+        GIMME_LIST_KNOWN - override base URL for known go versions (default '${GIMME_LIST_KNOWN}')
 #+   GIMME_KNOWN_CACHE_MAX - seconds the cache for --known is valid for (default '${GIMME_KNOWN_CACHE_MAX}')
+#+    GIMME_CLEAN_KEEP_FOR - seconds to look back in invocation log to keep a cached build (default '${GIMME_CLEAN_KEEP_FOR}')
 #+  -
 #
 set -e
@@ -133,6 +135,15 @@ else
 	}
 fi
 
+# _log_invocation "env-name"
+_log_invocation() {
+	(
+		umask 077
+		touch "${GIMME_INVOCATION_LOG}"
+	)
+	printf '%s %s\n' "$(date +%s)" "$1" >>"${GIMME_INVOCATION_LOG}"
+}
+
 # _do_curls "file" "url" ["url"...]
 _do_curls() {
 	f="${1}"
@@ -197,77 +208,140 @@ _source() {
 	_do_curls "${2}" "${urls[@]}"
 }
 
-# _fetch "dir"
-_fetch() {
-	mkdir -p "$(dirname "${1}")"
+# _common_git manages the bare git repo used as a cache for all the git state;
+# this lets us have N parallel git-built versions without retrieving all the
+# git content each time.  The state is shared, with `git clone --reference`,
+# and this is acceptable for our usage models, where the entire gimme tree
+# should be shared, or none of it.
+#
+# Optional arg: a revision which we want to exist; if it already exists,
+# then don't bother fetching.  If not supplied, or does not exist, then
+# we will fetch.
+_common_git() {
+	local -r git_bare="${GIMME_BARE_REPO:?}"
+	local -r old_git_location="${GIMME_VERSION_PREFIX}/go/.git"
+	local -r requested="${1:-}"
+	local fetched=false
 
-	if [[ -d "${1}/.git" ]]; then
-		(
-			cd "${1}"
-			git remote set-url origin "${GIMME_GO_GIT_REMOTE}"
-			git fetch -q --all && git fetch -q --tags
-		)
-		return
+	local -ar FETCH=(git -C "${git_bare}" fetch -q --all --tags --prune)
+	local -ar VERIFY=(git -C "${git_bare}" rev-parse -q --verify "${requested}^{object}")
+
+	# We use --mirror to create the bare repo, because we want all references to
+	# track upstream directly; this is our common reference repo, any checkouts are
+	# made by cloning this.
+
+	if [[ ! -d "${git_bare}" ]]; then
+		if [[ -d "${old_git_location}" ]]; then
+			# --dissociate is new enough that we can't rely upon it
+			git clone -q --mirror --reference "${old_git_location}" "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
+			git -C "${git_bare}" repack -a -d -q
+			rm -f "${git_bare}/objects/info/alternates"
+		else
+			git clone -q --mirror "${GIMME_GO_GIT_REMOTE}" "${git_bare}"
+		fi
+		fetched=true
 	fi
 
-	git clone -q "${GIMME_GO_GIT_REMOTE}" "${1}"
-}
+	# Earlier versions of this only used --bare, not --mirror; auto-repair the damage
+	local mirrored
+	if mirrored="$(git -C "${git_bare}" config --local --bool remote.origin.mirror)" && [[ "${mirrored}" == "true" ]]; then
+		true # all is good
+	else
+		warn "non-mirror '${git_bare}' detected, repairing ..."
+		git -C "${git_bare}" config --local remote.origin.fetch '+refs/*:refs/*'
+		git -C "${git_bare}" config --local --bool remote.origin.mirror true
+		git -C "${git_bare}" fetch
+		warn "repair complete"
+	fi
 
-# _checkout "version" "dir"
-# NB: might emit a "renamed version" on stdout
-_checkout() {
-	local spec="${1:?}" godir="${2:?}"
-	# We are called twice, once during validation that a version was given and
-	# later during build.  We don't want to fetch twice, so we are fetching
-	# during the validation only, in the caller.
-
-	if [[ "${spec}" =~ ^[0-9a-f]{6,}$ ]]; then
-		# We always treat this as a commit sha, whether instead of doing
-		# branch tests etc.  It looks like a commit sha and the Go maintainers
-		# aren't daft enough to use pure hex for a tag or branch.
-		git -C "$godir" reset -q --hard "${spec}" || return 1
+	if [[ -z "${requested}" ]]; then
+		$fetched || "${FETCH[@]}"
 		return 0
 	fi
 
-	# If spec looks like HEAD^{something} or HEAD^^^ then trying
-	# origin/$spec would succeed but we'd write junk to the filesystem,
-	# propagating annoying characters out.
-	local retval probe_named disallow rev
+	if "${VERIFY[@]}" >/dev/null; then
+		return 0
+	fi
+	"${FETCH[@]}"
+	if "${VERIFY[@]}" >/dev/null; then
+		return 0
+	else
+		warn "updated common go repo, unable to resolve: ${requested}"
+		return 1
+	fi
+}
 
-	probe_named=1
-	disallow='[@^~:{}]'
-	if [[ "${spec}" =~ $disallow ]]; then
-		probe_named=0
-		[[ "${spec}" != "@" ]] || spec="HEAD"
+# Handles arbitrary specifications and prints the resolved form to stdout,
+# as a directory-safe string, which is currently always just hex, identifying
+# the commit.  So tag version strings aren't kept.
+# The directory name is fully resolved, so that "HEAD dead" and "HEAD beef" are
+# both valid outputs, but we'll write "somewhere else".  The directory name is
+# _always_ a SHA and so safe!
+#
+# Usage: _resolve_git_spec <sha|refname|whatever>
+_resolve_git_spec() {
+	local spec="${1:?}"
+	local -r git_bare="${GIMME_BARE_REPO:?}"
+
+	# Anything like 'tip' or a branch name, we'll need to update first, but if
+	# it's a tag or a commit, we could avoid the fetch.  However, I'm not convinced
+	# that the added complexity of parsing those apart is worthwhile, so only optimize
+	# for the explicit sha case.
+	if [[ "${spec}" =~ ^[0-9a-f]{6,}$ ]]; then
+		_common_git "${spec}"
+	else
+		_common_git
 	fi
 
-	try_spec() { git -C "${godir}" reset -q --hard "$@" -- 2>/dev/null; }
+	case "$spec" in
+	tip)
+		spec="master"
+		;;
+	esac
 
-	retval=1
-	if ((probe_named)); then
-		retval=0
-		try_spec "origin/${spec}" ||
-			try_spec "origin/go${spec}" ||
-			{ [[ "${spec}" == "tip" ]] && try_spec origin/master; } ||
-			try_spec "refs/tags/${spec}" ||
-			try_spec "refs/tags/go${spec}" ||
-			retval=1
-	fi
+	# If we don't specify a length to short, then at some point in repo growth,
+	# git's heuristics will add an extra digit and we'll lose all cached builds.
+	# 10 characters is sufficient today, 16 should buy us lots of growth but not
+	# yield insane filenames when joined with other strings.
+	try_spec() {
+		git -C "${git_bare}" rev-parse -q --short=16 --verify "${1:?}^{commit}" 2>/dev/null
+	}
 
-	if ((retval)); then
-		retval=0
-		# We're about to reset anyway, if we succeed, so we should reset to a
-		# known state before parsing what might be relative specs
-		try_spec origin/master &&
-			rev="$(git -C "${godir}" rev-parse --verify -q "${spec}^{object}")" &&
-			try_spec "${rev}" &&
-			git -C "${godir}" rev-parse --verify -q --short=12 "${rev}" ||
-			retval=1
-		# that rev-parse prints to stdout, so we can affect the version seen
-	fi
+	local success=true
+	try_spec "${spec}" ||
+		try_spec "go${spec}" ||
+		success=false
 
 	unset -f try_spec
-	return $retval
+
+	if $success; then
+		# have printed a sha
+		return 0
+	fi
+
+	warn "unable to resolve git spec: '${spec}'"
+	return 1
+}
+
+# _checkout_sha "sha" "dir"
+_checkout_sha() {
+	local -r spec="${1:?}" godir="${2:?}"
+	local -r git_bare="${GIMME_BARE_REPO:?}"
+
+	# We expect the checkouts to be immutable once cloned, because they're
+	# revision-specific, so should never need to be rebuilt.
+	if [[ -d "${godir}" ]]; then
+		local have
+		have="$(git -C "${godir}" rev-parse --short=16 HEAD)"
+		if [[ "${have}" == "${spec}" ]]; then
+			return 0
+		fi
+		die "MUTATED IMMUTABLE: expect dir '${godir}' to be at SHA ${spec} but is at ${have}"
+	fi
+
+	git clone -q --reference "${git_bare}" "${GIMME_GO_GIT_REMOTE}" "${godir}"
+	git -C "$godir" reset -q --hard "${spec}" || return 1
+	return 0
 }
 
 # _extract "file.tar.gz" "dir"
@@ -419,6 +493,12 @@ _try_existing() {
 		local existing_ver="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
 		local existing_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
 		;;
+	git)
+		local resolved_sha
+		resolved_sha="$(_resolve_git_spec "$GIMME_GO_VERSION")" || return 1
+		local existing_ver="${GIMME_VERSION_PREFIX}/git.${resolved_sha}.${GIMME_OS}.${GIMME_ARCH}"
+		local existing_env="${GIMME_ENV_PREFIX}/git.${resolved_sha}.${GIMME_OS}.${GIMME_ARCH}.env"
+		;;
 	*)
 		_try_existing binary || _try_existing source
 		return $?
@@ -441,6 +521,7 @@ _try_existing() {
 		fi
 		# Export the same variables whether building new or using existing
 		echo "export GIMME_ENV='${existing_env}';"
+		_log_invocation "${existing_env}"
 		return
 	fi
 
@@ -454,6 +535,7 @@ _try_binary() {
 	local bin_tgz="${GIMME_TMP}/go${version}.${GIMME_OS}.${arch}.tar.gz"
 	local bin_dir="${GIMME_VERSION_PREFIX}/go${version}.${GIMME_OS}.${arch}"
 	local bin_env="${GIMME_ENV_PREFIX}/go${version}.${GIMME_OS}.${arch}.env"
+	local result_env
 
 	[[ "${version}" =~ ${ALLOWED_UPSTREAM_VERSION_RE} ]] || return 1
 
@@ -464,13 +546,16 @@ _try_binary() {
 	_binary "${version}" "${bin_tgz}" "${arch}" || return 1
 	_extract "${bin_tgz}" "${bin_dir}" || return 1
 	_env "${bin_dir}" | tee "${bin_env}" || return 1
-	echo "export GIMME_ENV=\"$(_env_alias "${bin_dir}" "${bin_env}")\""
+	result_env="$(_env_alias "${bin_dir}" "${bin_env}")" || return 1
+	echo "export GIMME_ENV=\"${result_env}\""
+	_log_invocation "${result_env}"
 }
 
 _try_source() {
 	local src_tgz="${GIMME_TMP}/go${GIMME_GO_VERSION}.src.tar.gz"
 	local src_dir="${GIMME_VERSION_PREFIX}/go${GIMME_GO_VERSION}.src"
 	local src_env="${GIMME_ENV_PREFIX}/go${GIMME_GO_VERSION}.src.env"
+	local result_env
 
 	[[ "${GIMME_GO_VERSION}" =~ ${ALLOWED_UPSTREAM_VERSION_RE} ]] || return 1
 
@@ -479,7 +564,9 @@ _try_source() {
 	_compile "${src_dir}" || return 1
 	_try_install_race "${src_dir}" || return 1
 	_env "${src_dir}" | tee "${src_env}" || return 1
-	echo "export GIMME_ENV=\"$(_env_alias "${src_dir}" "${src_env}")\""
+	result_env="$(_env_alias "${src_dir}" "${src_env}")" || return 1
+	echo "export GIMME_ENV=\"${result_env}\""
+	_log_invocation "${result_env}"
 }
 
 # We do _not_ try to use any version caching with _try_existing(), but instead
@@ -492,17 +579,29 @@ _try_source() {
 # Note that the env will just refer to the 'go' directory, so it's not safe
 # to reuse anyway.
 _try_git() {
-	local git_dir="${GIMME_VERSION_PREFIX}/go"
-	local git_env="${GIMME_ENV_PREFIX}/go.git.${GIMME_OS}.${GIMME_ARCH}.env"
 	local resolved_sha
 
-	# Any tags should have been resolved when we asserted that we were
-	# given a version, so no need to handle that here.
-	_checkout "${GIMME_GO_VERSION}" "${git_dir}" >/dev/null || return 1
+	resolved_sha="$(_resolve_git_spec "$GIMME_GO_VERSION")" || return 1
+	local git_dir="${GIMME_VERSION_PREFIX}/git.${resolved_sha}.${GIMME_OS}.${GIMME_ARCH}"
+	local git_env="${GIMME_ENV_PREFIX}/git.${resolved_sha}.${GIMME_OS}.${GIMME_ARCH}.env"
+
+	if [[ -d "${git_dir}" ]]; then
+		if _try_existing git; then
+			return 0
+		fi
+		# We're here if something went wrong with compilation before;
+		# continue on, try to repair.
+	fi
+
+	_checkout_sha "${resolved_sha}" "${git_dir}" || return 1
 	_compile "${git_dir}" || return 1
 	_try_install_race "${git_dir}" || return 1
 	_env "${git_dir}" | tee "${git_env}" || return 1
-	echo "export GIMME_ENV=\"$(_env_alias "${git_dir}" "${git_env}")\""
+	# We don't use _env_alias with git
+	# Before changing this, consider impact upon what names are logged,
+	# as we use the log for cleanup.
+	echo "export GIMME_ENV=\"${git_env}\""
+	_log_invocation "${git_env}"
 }
 
 _wipe_version() {
@@ -537,6 +636,11 @@ _list_versions() {
 		fi
 		echo
 	done
+	for d in "${GIMME_VERSION_PREFIX}/git".*."${GIMME_OS}".*; do
+		local cleaned="${d##*/git}"
+		cleaned="${cleaned%%.${GIMME_OS}.*}"
+		echo "${cleaned}"
+	done | sort
 }
 
 _update_remote_known_list_if_needed() {
@@ -729,18 +833,18 @@ _assert_version_given() {
 
 	# Here we resolve symbolic references.  If we don't, then we get some
 	# random git tag name being accepted as valid and then we try to
-	# curl garbage from upstream.
+	# curl garbage from upstream.  The resolution happens always, including
+	# for tags, as we'll map tags to commit shas for git builds.
 	if [[ "${GIMME_TYPE}" == "auto" || "${GIMME_TYPE}" == "git" ]]; then
-		local git_dir="${GIMME_VERSION_PREFIX}/go"
 		local resolved_sha
-		_fetch "${git_dir}"
-		if resolved_sha="$(_checkout "${GIMME_GO_VERSION}" "${git_dir}")"; then
-			if [[ -n "${resolved_sha}" ]]; then
-				# Break our normal silence, this one really needs to be seen on stderr
-				# always; auditability and knowing what version of Go you got wins.
+		if resolved_sha="$(_resolve_git_spec "${GIMME_GO_VERSION}")"; then
+			# Break our normal silence, this one really needs to be seen on stderr
+			# always; auditability and knowing what version of Go you got wins.
+			if [[ "${GIMME_GO_VERSION}" != "${resolved_sha}" ]]; then
 				warn "resolved '${GIMME_GO_VERSION}' to '${resolved_sha}'"
-				GIMME_GO_VERSION="${resolved_sha}"
 			fi
+			GIMME_TYPE=git
+			GIMME_GO_VERSION="${resolved_sha}"
 			return 0
 		fi
 	fi
@@ -748,6 +852,45 @@ _assert_version_given() {
 	echo >&2 'error: GIMME_GO_VERSION not recognized as valid'
 	echo >&2 "  got: ${GIMME_GO_VERSION}"
 	${ASSERT_ABORT:-exit} 1
+}
+
+# Currently we just clean git builds; we could clean "everything" but that
+# will require careful thought about how to handle aliases in build logs.
+# That would be easy in Various Other Languages.
+_clean_cached_builds() {
+	local min_time env_file last_used
+	min_time=$(($(date +%s) - GIMME_CLEAN_KEEP_FOR))
+	if [[ -n "${GIMME_DEBUG_OVERRIDE_MINTIME:-}" ]]; then
+		min_time="${GIMME_DEBUG_OVERRIDE_MINTIME:?}"
+	fi
+	# comm(1) is obtuse; here we're using process substitution yielding a filename
+	# <( ... )  which has been in Bash for almost as long as it's been in Zsh.
+	# We want "only those which only appear in the first output", so suppress the
+	# other columns.
+	comm -23 \
+		<(awk -v "min_time=$min_time" '$1 < min_time { print $2 }' "${GIMME_INVOCATION_LOG}" | sort -u) \
+		<(awk -v "min_time=$min_time" '$1 >= min_time { print $2 }' "${GIMME_INVOCATION_LOG}" | sort -u) |
+		while read -r env_file; do
+			case "$env_file" in
+			*/git.*) true ;;
+			**) continue ;; # before changing this, consider how to handle aliases
+			esac
+			test -f "$env_file" || continue
+			last_used="$(awk -v "want=$env_file" '$2 == want { print $1 }' "${GIMME_INVOCATION_LOG}" | tail -n 1)"
+			_clean_one_build "$env_file" "$last_used"
+		done
+}
+
+_clean_one_build() {
+	local envfile="${1:?}" last_used_epoch="${2:?}"
+	local base
+	base="$(basename "$envfile")"
+	eval "$(grep GOROOT= "$envfile")"
+	# oh ugh, BSD vs GNU date conversion, I can't be bothered to translate
+	warn "cleaning $base, last used: ${last_used_epoch}"
+	du -hs "$GOROOT" >&2
+	rm -rf -- "$GOROOT" "$envfile"
+	unset GOROOT
 }
 
 _exclude_from_backups() {
@@ -780,6 +923,7 @@ _to_goarch() {
 : "${GIMME_ARCH:=$(_to_goarch "$(uname -m)")}"
 : "${GIMME_HOSTARCH:=$(_to_goarch "$(uname -m)")}"
 : "${GIMME_ENV_PREFIX:=${HOME}/.gimme/envs}"
+: "${GIMME_INVOCATION_LOG:=${HOME}/.gimme/invoked.log}"
 : "${GIMME_VERSION_PREFIX:=${HOME}/.gimme/versions}"
 : "${GIMME_TMP:=${TMPDIR:-/tmp}/gimme}"
 : "${GIMME_GO_GIT_REMOTE:=https://github.com/golang/go.git}"
@@ -788,6 +932,7 @@ _to_goarch() {
 : "${GIMME_DOWNLOAD_BASE:=https://dl.google.com/go}"
 : "${GIMME_LIST_KNOWN:=https://golang.org/dl}"
 : "${GIMME_KNOWN_CACHE_MAX:=10800}"
+: "${GIMME_CLEAN_KEEP_FOR:=1209600}"
 
 # The version prefix must be an absolute path
 case "${GIMME_VERSION_PREFIX}" in
@@ -860,6 +1005,10 @@ while [[ $# -gt 0 ]]; do
 	--force-known-update | force-known-update)
 		force_known_update=1
 		;;
+	--clean | clean)
+		_clean_cached_builds
+		exit 0
+		;;
 	-i | install)
 		true # ignore a dummy argument
 		;;
@@ -905,10 +1054,6 @@ stable) GIMME_GO_VERSION=$(_get_curr_stable) ;;
 oldstable) GIMME_GO_VERSION=$(_get_old_stable) ;;
 esac
 
-_assert_version_given "$@"
-
-((force_install)) && _wipe_version "${GIMME_GO_VERSION}"
-
 unset GOARCH
 unset GOBIN
 unset GOOS
@@ -919,7 +1064,12 @@ unset CC_FOR_TARGET
 # GO111MODULE breaks build of Go itself
 unset GO111MODULE
 
-mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
+readonly GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
+readonly GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
+readonly GIMME_INVOCATION_LOG="$(_realpath "${GIMME_INVOCATION_LOG}")"
+readonly GIMME_BARE_REPO="${GIMME_VERSION_PREFIX}/common-go.git"
+
+mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}" "$(dirname "${GIMME_INVOCATION_LOG}")"
 # The envs dir stays small and provides a record of what had been installed
 # whereas the versions dir grows by hundreds of MB per version and is not
 # intended to support local modifications (as that subverts the point of gimme)
@@ -927,8 +1077,9 @@ mkdir -p "${GIMME_VERSION_PREFIX}" "${GIMME_ENV_PREFIX}"
 # the versions dir should be excluded from system backups.
 _exclude_from_backups "${GIMME_VERSION_PREFIX}"
 
-GIMME_VERSION_PREFIX="$(_realpath "${GIMME_VERSION_PREFIX}")"
-GIMME_ENV_PREFIX="$(_realpath "${GIMME_ENV_PREFIX}")"
+_assert_version_given "$@"
+
+((force_install)) && _wipe_version "${GIMME_GO_VERSION}"
 
 if ! case "${GIMME_TYPE}" in
 	binary) _try_existing binary || _try_binary "${GIMME_GO_VERSION}" "${GIMME_ARCH}" ;;
