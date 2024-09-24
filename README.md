@@ -21,15 +21,15 @@ chmod +x ~/bin/gimme
 brew install gimme
 ```
 
-[Arch AUR](https://aur.archlinux.org/) (Arch Linux), substituting `yaourt` with
+[Arch AUR](https://aur.archlinux.org/) (Arch Linux), substituting `yay` with
 however you prefer to install from AUR:
 
 ``` bash
 # latest released version
-yaourt -S gimme
+yay -S gimme
 
 # current git HEAD revision
-yaourt -S gimme-git
+yay -S gimme-git
 ```
 
 Then check the help text a la:
